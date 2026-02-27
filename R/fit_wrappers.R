@@ -72,10 +72,10 @@ regression_fit <- function(data, model_regression, outcome_string, covariates = 
             } 
         },
         error = function(e) {
-            stop("Error in fitting regression model: ", e, "with formula: ", formula_regression)
+            stop("Error in fitting regression model: ", e)
         },
         warning = function(w) {
-            message("Warning in fitting regression model: ", w, "with formula: ", formula_regression)
+            message("Warning in fitting regression model: ", w)
         }
         )
 }
