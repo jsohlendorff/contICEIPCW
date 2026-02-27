@@ -21,7 +21,7 @@ debias_ice_ipcw(
   return_ic = FALSE,
   grid_size = NULL,
   lag = NULL,
-  verbose = TRUE,
+  verbose = FALSE,
   semi_tmle = FALSE
 )
 }
@@ -106,4 +106,30 @@ that is updated with the efficient influence function, providing inference
 via a one-step estimator.
 Current interventions implemented: Static intervention (i.e., intervention at baseline and at each doctor visit to a fixed value).
 Current target parameters implemented: Absolute risk.
+}
+\examples{
+set.seed(15)
+data_continuous <- simulate_continuous_time_data(
+  n = 1000,
+  uncensored = FALSE,
+  no_competing_events = FALSE,
+  baseline_rate_list = list(
+    A = 0.005,
+    L = 0.001,
+    C = 0.0008,
+    Y = 0.0001,
+    D = 0.00015
+  )
+)
+
+debias_ice_ipcw(
+  data = data_continuous,
+  time_horizon = 720,
+  model_pseudo_outcome = "oipcw_expit",
+  model_treatment = "learn_glm_logistic",
+  model_hazard = "learn_coxph",
+  time_covariates = c("A", "L"),
+  baseline_covariates = c("age", "A_0", "L_0"),
+  conservative = TRUE
+)
 }

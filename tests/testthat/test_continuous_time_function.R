@@ -1,5 +1,4 @@
 library(testthat)
-setwd("~/contICEIPCW")
 
 test_that("test continuous time function (uncensored)", {
     library(data.table)
@@ -146,10 +145,10 @@ test_that("test continuous time function (censored; non_conservative; multiple i
 
     # dpasta(result)
     correct_result <- data.table::data.table(
-                                      estimate = 0.2701443604131437,
-                                      se = 0.01674214920364209,
-                                      lower = 0.23732974797400522,
-                                      upper = 0.30295897285228224,
+                                      estimate = 0.2701755590505636,
+                                      se = 0.016741446624264904,
+                                      lower = 0.2373623236670044,
+                                      upper = 0.30298879443412285,
                                       ice_ipcw_estimate = 0.2714325697499465,
                                       ipw = 0.2693019050719549
                                   )
@@ -382,10 +381,10 @@ test_that("test continuous time function (censored; competing events; conservati
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.2841567677335487,
-                                      se = 0.016813500588201833,
-                                      lower = 0.2512023065806731,
-                                      upper = 0.3171112288864243,
+                                      estimate = 0.28419787544646624,
+                                      se = 0.01681271790106795,
+                                      lower = 0.25124494836037303,
+                                      upper = 0.31715080253255945,
                                       ice_ipcw_estimate = 0.2846643753705404,
                                       ipw = 0.28495738884128674
                                   )

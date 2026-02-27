@@ -14,17 +14,17 @@ LinkingTo:
 Imports:
     ggplot2,
     prodlim,
-    ranger,
     Rcpp,
     riskRegression,
     survival,
     Rfast,
-    dplyr,
-    h2o,
     lava,
-    zoo
+    zoo,
+    nleqslv
 Depends:
     data.table
 Suggests: 
-    testthat (>= 3.0.0)
+    testthat (>= 3.0.0),
+    h2o,
+    ranger
 Config/testthat/edition: 3
