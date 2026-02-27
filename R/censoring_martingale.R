@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Feb 27 2026 (19:57) 
+## Last-Updated: Feb 27 2026 (20:08) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 23
+##     Update #: 28
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -74,7 +74,7 @@ censoring_martingale <- function(data_censoring,
             }                        
             
             ids <- at_risk_before_time_horizon$id
-            at_risk_before_time_horizon[, protocol_follow := data[ids, ic_term_part] > 0]
+            at_risk_before_time_horizon[, protocol_follow := data[ids, inverse_cumulative_probability_weights] > 0]
             ids_follow <- at_risk_before_time_horizon[protocol_follow == TRUE, id]
             preds <- list()
             for (v in seq_len(grid_size)) {
@@ -86,18 +86,17 @@ censoring_martingale <- function(data_censoring,
                         at_risk_before_u <- at_risk_before_u[protocol_follow == TRUE]
                         at_risk_before_u[, q_pred_u := q_prediction]
                     } else {
-                        history_of_variables_ice_u <- get_history_of_variables(
+                        q_hat_u <- regression_fit(
                             at_risk_before_u,
-                            time_covariates,
-                            baseline_covariates,
-                            type = "pseudo_outcome",
+                            model_pseudo_outcome,
+                            outcome_string = "pseudo_outcome_f",
+                            use_history_of_variables = TRUE,
                             lag = lag,
-                            k = k
+                            k = k,
+                            time_covariates = time_covariates,
+                            baseline_covariates = baseline_covariates,
+                            type = "pseudo_outcome"
                         )
-                        q_hat_u <- learn_Q(model_pseudo_outcome,
-                                           history_of_variables_ice_u,
-                                           at_risk_before_u,
-                                           outcome_name = "pseudo_outcome_f")
                     }
                     at_risk_before_u <- at_risk_before_u[protocol_follow == TRUE]
                     at_risk_before_u[, q_pred_u := predict_intervention(.SD, k, q_hat_u, static_intervention)]
@@ -234,8 +233,8 @@ censoring_martingale <- function(data_censoring,
         } else {
             at_risk_before_time_horizon[, cens_mg := 0]
         }
-        ic_final <- merge(at_risk_before_time_horizon[, c("pseudo_outcome", "q_prediction", "id", "cens_mg")], data[, c("ic_term_part", "id")], by = "id")
-        return(ic_final[, ic_term_part := ic_term_part * (pseudo_outcome - q_prediction + cens_mg)])
+        ic_final <- merge(at_risk_before_time_horizon[, c("pseudo_outcome", "q_prediction", "id", "cens_mg")], data[, c("inverse_cumulative_probability_weights", "id")], by = "id")
+        return(ic_final[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights * (pseudo_outcome - q_prediction + cens_mg)])
     } else {
         stop("Grid size must be specified for conservative=FALSE.")
     }

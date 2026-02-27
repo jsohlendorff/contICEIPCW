@@ -177,16 +177,16 @@ debias_ice_ipcw <- function(data,
         ## Predict q_k under the previous intervention
         data_at_risk[, q_prediction := predict_intervention(.SD, k-1, q_reg, static_intervention)]
 
-        ## Save values for next iteration (won't have to use predict intervention again)
+        ## Save values for next iteration
         q_prediction <- data_at_risk[, c("q_prediction", "id"), with = FALSE]
         setnames(q_prediction, "q_prediction", "future_prediction")
 
-        ## Stop if any predictions are NA or below or above 1
+        ## Throw error if any predictions are NA
         if (any(is.na(data_at_risk$q_prediction))) {
             stop("Predictions contain NA values.")
         }
-        data_at_risk[, ic_term_part := ic_term_part_k_prev, env = list(ic_term_part_k_prev = paste0("ic_term_part_", k - 1))]
-        data[, ic_term_part := ic_term_part_k_prev, env = list(ic_term_part_k_prev = paste0("ic_term_part_", k - 1))]
+        data_at_risk[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights_k_prev, env = list(inverse_cumulative_probability_weights_k_prev = paste0("inverse_cumulative_probability_weights_", k - 1))]
+        data[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights_k_prev, env = list(inverse_cumulative_probability_weights_k_prev = paste0("inverse_cumulative_probability_weights_", k - 1))]
 
         if (!conservative & is_censored) {
             if (semi_tmle) stop("semi-tmle not implemented yet for censored martingale")
@@ -207,28 +207,28 @@ debias_ice_ipcw <- function(data,
                                              static_intervention)
         } else {
             ## If conservative, we do not compute the martingale terms
-            ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("ic_term_part", "id")], by = "id")
+            ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("inverse_cumulative_probability_weights", "id")], by = "id")
             if (semi_tmle) {
                 max_pseudo_outcome <- max(ic_final$pseudo_outcome)
                 ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
                 ic_final$f_pseudo_outcome <- ic_final$pseudo_outcome / max_pseudo_outcome
                 ic_final$f_q_prediction <- ic_final$q_prediction / max_pseudo_outcome
-                epsilonhat <- glm(f_pseudo_outcome~ic_term_part-1+offset(qlogis(f_q_prediction)),family="quasibinomial",data = ic_final)$coefficients[1]
+                epsilonhat <- glm(f_pseudo_outcome~inverse_cumulative_probability_weights-1+offset(qlogis(f_q_prediction)),family="quasibinomial",data = ic_final)$coefficients[1]
                 ic_final[, c("f_pseudo_outcome", "f_q_prediction") := NULL]
-                future_prediction <- plogis(qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$ic_term_part))
+                future_prediction <- plogis(qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$inverse_cumulative_probability_weights))
                 ic_final$q_prediction <- future_prediction
                 q_prediction$future_prediction <- future_prediction
             }
-            ic_final <- ic_final[, ic_term_part := ic_term_part * (pseudo_outcome - q_prediction)] # pseudo_outcome: Z. pred: Q
+            ic_final <- ic_final[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights * (pseudo_outcome - q_prediction)] # pseudo_outcome: Z. pred: Q
         }
-        ic_final <- ic_final[, c("ic_term_part", "id")]
+        ic_final <- ic_final[, c("inverse_cumulative_probability_weights", "id")]
 
         ## Now add the influence curve to the data data
-        data[, ic_term_part := NULL]
+        data[, inverse_cumulative_probability_weights := NULL]
         data <- merge(ic_final, data, by = "id", all = TRUE)
-        data[is.na(ic_term_part), ic_term_part := 0]
+        data[is.na(inverse_cumulative_probability_weights), inverse_cumulative_probability_weights := 0]
 
-        data[, ic := ic + ic_term_part]
+        data[, ic := ic + inverse_cumulative_probability_weights]
         is_last_event <- FALSE
     }
     if (return_ipw) {
