@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar  2 2026 (23:06) 
+## Last-Updated: Mar  3 2026 (12:28) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 137
+##     Update #: 138
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -86,7 +86,7 @@ propensity_scores <- function(last_event,
                     time_k_prev = paste0("time_", k - 1)
                 )]
 
-                data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit, data_use, time_ref = "time_prev")
+                data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit, data_use, data_use, time_ref = "time_prev")
                 learn_censoring <- list(
                     pred = exp(-data_use$Lambda_minus)
                 )

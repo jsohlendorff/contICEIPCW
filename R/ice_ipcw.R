@@ -248,7 +248,6 @@ debias_ice_ipcw <- function(data,
             ic_final <- ic_final[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights * (pseudo_outcome - q_prediction)] # pseudo_outcome: Z. pred: Q
         }
         ic_final <- ic_final[, c("inverse_cumulative_probability_weights", "id")]
-
         ## Now add the influence curve to the data data
         data[, inverse_cumulative_probability_weights := NULL]
         data <- merge(ic_final, data, by = "id", all = TRUE)

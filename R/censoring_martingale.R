@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar  3 2026 (11:56) 
+## Last-Updated: Mar  3 2026 (13:57) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 298
+##     Update #: 336
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -221,11 +221,11 @@ censoring_martingale <- function(
   )
 
   preds_surv[, time := time - time_k_prev] ## Interarrival event form
-  preds_surv <- merge(preds_surv, at_risk_interevent, by = "id") ## "Covariates" for prediction
 
   preds_surv <- cumulative_hazard_cox(
     surv_fit$fit,
-    preds_surv
+    preds_surv,
+    at_risk_interevent
   )
 
   preds_surv[, surv := exp(-Lambda_minus)]
@@ -234,8 +234,7 @@ censoring_martingale <- function(
   preds <- merge(
     preds,
     preds_surv[, .(id, time, surv, type)],
-    by = c("id", "time", "type"),
-    all.x = TRUE
+    by = c("id", "time", "type")
   )
 
   ## ------------------------------------------------------------------
@@ -246,15 +245,11 @@ censoring_martingale <- function(
     stop("Only coxph marginal censoring supported.")
 
   preds <- merge(preds, data_at_risk[, c("id", time_k_prev), with = FALSE], by = "id")
-  preds_cens <- merge(
-    preds,
-    data_censoring[, !"time"],
-    by = "id"
-  )
 
   preds_cens <- cumulative_hazard_cox(
     marginal_censoring_fit$fit,
-    preds_cens,
+    preds,
+    data_censoring[, !"time"],
     time_ref = time_k_prev
   )
 
@@ -295,14 +290,12 @@ censoring_martingale <- function(
               lambda_term,
               by = "id",
               all = TRUE)
-
   mg[is.na(mg)] <- 0
   mg[, cens_mg := mg_counting_term - mg_lambda_term]
 
   ## ------------------------------------------------------------------
   ## 11. Merge back and return IC
-  ## ------------------------------------------------------------------
-
+  ## ------------------------------------------------------------------  
   out <- merge(
     data_at_risk,
     mg[, .(id, cens_mg)],
@@ -327,12 +320,12 @@ censoring_martingale <- function(
   ]
 }
 
-cumulative_hazard_cox <- function(fit, data, time_ref = NULL) {
+cumulative_hazard_cox <- function(fit, data, covariate_data, time_ref = NULL) {
     hazard<-hazard_minus<-Lambda<-exp_lp <- Lambda_minus <- NULL
     ## Find exp(LP); i.e., exponential of linear predictor
-    exp_lp_dt <- data.table(id = data$id)
+    exp_lp_dt <- data.table(id = covariate_data$id)
     exp_lp_dt$exp_lp <- predict(fit,
-                                newdata = data,
+                                newdata = covariate_data,
                                 type = "risk",
                                 reference = "zero")
     exp_lp_dt <- unique(exp_lp_dt)
