@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Feb 27 2026 (20:08) 
+## Last-Updated: Mar  3 2026 (09:50) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 28
+##     Update #: 197
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -29,6 +29,7 @@ censoring_martingale <- function(data_censoring,
                                  marginal_censoring_fit,
                                  data,
                                  static_intervention) {
+    event_k<-time_k<-time_0<-protocol_follow<-inverse_cumulative_probability_weights<-id <- time_k_minus <- pseudo_outcome_f <- pseudo_outcome <- q_pred_u <- q_prediction <- q_diff <- type <- time <- init <- Lambda <- Lambda_minus <- surv <- Lambda_0 <- Lambda_C <- Lambda_C_diff <- surv_cens <- integrand <- mg_lambda_term <- cens_mg <- mg_counting_term <- . <- NULL
     if (!is.null(grid_size) && grid_size > 0) {
         if (!marginal_censoring) {
             stop("multiple_ice is only supported for marginal censoring hazard (for now).")
@@ -61,14 +62,14 @@ censoring_martingale <- function(data_censoring,
             if (k == 1) {
                 at_risk_before_time_horizon[, time_0 := 0]
             }
-            time_grid_min <- quantile(at_risk_before_time_horizon[[paste0("time_", k-1)]], probs = 0)
-            time_grid_mid <- quantile(at_risk_before_time_horizon[[paste0("time_", k)]], probs = c(0.05,1))
+            time_grid_min <- stats::quantile(at_risk_before_time_horizon[[paste0("time_", k-1)]], probs = 0)
+            time_grid_mid <- stats::quantile(at_risk_before_time_horizon[[paste0("time_", k)]], probs = c(0.05,1))
             ## Check if time_horizon < time_grid_mid[1]; if not do the following
             if (time_horizon >= time_grid_mid[1]) {
                 time_grid_upper <- seq(time_grid_mid[1], min(time_grid_mid[2], time_horizon), length.out = grid_size - 1)
                 time_grid <- c(time_grid_min, time_grid_upper)
             } else {
-                time_grid_max <- quantile(at_risk_before_time_horizon[[paste0("time_", k)]], probs = 1)
+                time_grid_max <- stats::quantile(at_risk_before_time_horizon[[paste0("time_", k)]], probs = 1)
                 ## Uniform grid between 0 and time_horizon
                 time_grid <- seq(time_grid_min, pmin(time_grid_max, time_horizon), length.out = grid_size)
             }                        
@@ -78,6 +79,7 @@ censoring_martingale <- function(data_censoring,
             ids_follow <- at_risk_before_time_horizon[protocol_follow == TRUE, id]
             preds <- list()
             for (v in seq_len(grid_size)) {
+                ##print(paste0("Processing time ", time_grid[v]))
                 ## Should probably do it with at_risk_before_u
                 if (v > 1) {
                     at_risk_before_u <- at_risk_before_time_horizon[time_k_minus < time_grid[v], env = list(time_k_minus = paste0("time_", k - 1))]
@@ -99,7 +101,7 @@ censoring_martingale <- function(data_censoring,
                         )
                     }
                     at_risk_before_u <- at_risk_before_u[protocol_follow == TRUE]
-                    at_risk_before_u[, q_pred_u := predict_intervention(.SD, k, q_hat_u, static_intervention)]
+                    at_risk_before_u[, q_pred_u := predict_intervention(.SD, k-1, q_hat_u, static_intervention)] 
                 } else {
                     at_risk_before_u <- at_risk_before_time_horizon[time_k_minus < time_grid[v], env = list(time_k_minus = paste0("time_", k - 1))]
                     at_risk_before_u <- at_risk_before_u[protocol_follow == TRUE]
@@ -109,10 +111,13 @@ censoring_martingale <- function(data_censoring,
                 ## connect data_u with data_at_risk_time_horizon ids not available; set their q_pred_u to 0
                 ids_time_horizon <- setdiff(ids, at_risk_before_u$id)
                 if (length(ids_time_horizon) > 0) {
+                    ## if (length(ids_time_horizon) != nrow(data_u)) browser()
+                    ## if (k == 2) 
                     data_u <- rbind(
                         data_u,
                         data.frame(id = ids_time_horizon, q_pred_u = 0, q_prediction = at_risk_before_time_horizon[id %in% ids_time_horizon, q_prediction])
                     )
+                    
                 }
                 data_u$time <- time_grid[v]
                 data_u$q_diff <-  data_u$q_prediction - data_u$q_pred_u
@@ -133,7 +138,7 @@ censoring_martingale <- function(data_censoring,
             data_censoring_times_k <- data_censoring[time <= time_horizon, time]
             min_cens_prev <- min(at_risk_before_time_horizon[[paste0("time_", k - 1)]])
             data_censoring_times_k <- data_censoring_times_k[data_censoring_times_k >= min_cens_prev]
-            cj_dat <- CJ(time = data_censoring_times_k, id = ids_follow)
+            cj_dat <- data.table::CJ(time = data_censoring_times_k, id = ids_follow)
             cj_dat <- merge(cj_dat, at_risk_before_time_horizon[, c("id", paste0("time_", k), paste0("time_", k-1)), with = FALSE], by = "id")
             cj_dat <- cj_dat[time_k_minus < time & time <= time_k & time <= time_horizon,
                              env = list(time_k = paste0("time_", k), time_k_minus = paste0("time_", k - 1))]
@@ -172,38 +177,63 @@ censoring_martingale <- function(data_censoring,
             if (!inherits(learn_surv$fit, "coxph")){
                 stop("Not implemented!")
             } else {
-                ## Because pred's may not be on interevent form; we need to make sure that it is 
-                preds_mod <- preds
+                ## Because pred's may not be on interevent form; we need to make sure that it is
+                preds_mod <- copy(preds)
                 ## Add to preds the time of the k-1'th event by id
                 preds_mod <- merge(preds_mod, at_risk_before_time_horizon[, c("id", paste0("time_", k-1)), with = FALSE], by = "id")
                 ## Subtract time_k-1 from time in preds_mod to get the time since the last event
+                preds_mod[, time_org := time]
                 preds_mod[, time := time - get(paste0("time_", k-1))]
-                preds_mod <- cumulative_hazard_cox_variant(learn_surv, preds_mod, at_risk_interevent[id %in% preds$id])
+                setnames(preds_mod, paste0("time_", k-1), "time_k_minus")
+                preds_mod <- merge(preds_mod, at_risk_interevent, by = "id")
+                preds_mod <- cumulative_hazard_cox(learn_surv$fit, preds_mod)
+                ## cumulative_hazard_cox_variant(learn_surv, preds_mod, at_risk_interevent[id %in% preds$id])
                 ## Change NAs to zero
-                preds_mod[is.na(Lambda), Lambda := 0]
-                preds_mod[is.na(Lambda_minus), Lambda_minus := 0]
+                ## preds_mod[is.na(Lambda), Lambda := 0]
+                ## preds_mod[is.na(Lambda_minus), Lambda_minus := 0]
                 preds_mod[, surv := exp(-Lambda_minus)]
-                preds_mod[, c("Lambda", "Lambda_minus") := list(NULL, NULL)]
-                preds_mod[, time := time + get(paste0("time_", k-1))]
-                preds_mod[, time_k_minus := NULL, env = list(time_k_minus = paste0("time_", k - 1))]
-                preds <- preds_mod
+                ## preds_mod[, c("Lambda", "Lambda_minus") := list(NULL, NULL)]
+                ## preds_mod[, time := time + get(paste0("time_", k-1))]
+                ## preds_mod[, time_k_minus := NULL, env = list(time_k_minus = paste0("time_", k - 1))]
+                preds_mod <- preds_mod[, c("id", "time_org", "surv", "type")]
+                setnames(preds_mod, "time_org", "time")
+                preds <- unique(merge(preds, preds_mod[, c("id", "time","surv", "type")], by = c("id", "time", "type")))
+                ## Because pred's may not be on interevent form; we need to make sure that it is 
+                ## preds_mod <- preds
+                ## ## Add to preds the time of the k-1'th event by id
+                ## preds_mod <- merge(preds_mod, at_risk_before_time_horizon[, c("id", paste0("time_", k-1)), with = FALSE], by = "id")
+                ## ## Subtract time_k-1 from time in preds_mod to get the time since the last event
+                ## preds_mod[, time := time - get(paste0("time_", k-1))]
+                ## preds_mod <- cumulative_hazard_cox_variant(learn_surv, preds_mod, at_risk_interevent[id %in% preds$id])
+                ## ## Change NAs to zero
+                ## preds_mod[is.na(Lambda), Lambda := 0]
+                ## preds_mod[is.na(Lambda_minus), Lambda_minus := 0]
+                ## preds_mod[, surv := exp(-Lambda_minus)]
+                ## preds_mod[, c("Lambda", "Lambda_minus") := list(NULL, NULL)]
+                ## preds_mod[, time := time + get(paste0("time_", k-1))]
+                ## preds_mod[, time_k_minus := NULL, env = list(time_k_minus = paste0("time_", k - 1))]
+                ## preds <- preds_mod
             }
             if (!inherits(marginal_censoring_fit$fit, "coxph")){
                 ## preds <- pred_and_merge(preds, marginal_censoring_fit$fit, data_censoring[id %in% preds$id], unique(preds$time), unique(preds$time), "surv_cens")
                 stop("*Not implemented!")
             } else {
-                preds <- cumulative_hazard_cox_variant(marginal_censoring_fit, preds, data_censoring[id %in% preds$id])
-                preds[is.na(Lambda), c("Lambda", "Lambda_minus") := list(0, 0)]
-                ## Find first Lambda by id
-                preds[, Lambda_0 := Lambda[1], by = id]
-                preds[, Lambda_C := Lambda - Lambda_0]
-                preds[, Lambda_C_diff := Lambda_C - shift(Lambda_C, fill = 0), by = id]
-                preds[, surv_cens := exp(-Lambda)]
-                preds[, c("Lambda", "Lambda_0", "Lambda_C", "Lambda_minus") := list(NULL, NULL, NULL, NULL)]
+                ## Find previous event time for each id in preds; i.e., time_{k-1}
+                preds <- merge(preds, at_risk_before_time_horizon[, c("id", paste0("time_", k-1)), with = FALSE], by = "id")
+                setnames(preds, paste0("time_", k-1), "time_k_minus")
+                data_censoring_temp <- data_censoring[id %in% preds$id]
+                data_censoring_temp[, time := NULL]
+                ## also merge with the data_censoring to get the covariates for the censoring model
+                preds <- merge(preds, data_censoring_temp)
+                preds_new <- cumulative_hazard_cox(marginal_censoring_fit$fit, preds, time_ref = "time_k_minus")
+                setnames(preds_new, c("Lambda", "Lambda_minus"), c("Lambda_C", "Lambda_C_minus"))
+                preds <- merge(preds, preds_new, by = c("id", "time"))
+                preds[, surv_cens := exp(-Lambda_C_minus)]
+                preds[, Lambda_C_diff := Lambda_C - Lambda_C_minus]
             }
             preds <- preds[init == FALSE]
             ## preds[, Lambda_C := -log(surv_cens)]
-            ## preds[, Lambda_C_diff := Lambda_C - shift(Lambda_C, fill = 0), by = id]
+            ## preds[, Lambda_C_diff := Lambda_C - data.table::shift(Lambda_C, fill = 0), by = id]
             preds[, integrand := q_diff * 1 / surv * 1 / surv_cens]
             ## Counting process term.
             preds_counting <- preds[type == "counting_process"]
@@ -240,29 +270,62 @@ censoring_martingale <- function(data_censoring,
     }
 }
 
-cumulative_hazard_cox_variant <- function(model, dt, covariate_data) {
+cumulative_hazard_cox <- function(fit, data, time_ref = NULL) {
+    hazard<-hazard_minus<-Lambda<-exp_lp <- Lambda_minus <- NULL
     ## Find exp(LP); i.e., exponential of linear predictor
-    exp_lp_dt <- data.table(id = covariate_data$id)
-    base_hazard <- NULL
-    exp_lp_dt$exp_lp <- predict(model$fit,
-                                newdata = covariate_data,
+    exp_lp_dt <- data.table(id = data$id)
+    exp_lp_dt$exp_lp <- predict(fit,
+                                newdata = data,
                                 type = "risk",
                                 reference = "zero")
+    exp_lp_dt <- unique(exp_lp_dt)
     ## Baseline cumulative hazard Lambda_0^x (T_j) for all j
-    if (is.null(base_hazard)) {
-        base_hazard <- as.data.table(basehaz(model$fit, centered = FALSE))
+    base_hazard <- as.data.table(survival::basehaz(fit, centered = FALSE))
+    base_hazard[, hazard_prev := c(0, hazard[-.N])]
+
+    if (!is.null(time_ref)) {
+        min_time <- min(data[, time_ref, with = FALSE])
+        data <- data.table::melt(data, id.vars = "id", measure.vars = c("time", time_ref), value.name = "time")
+        data <- unique(data)
+        setkeyv(data, c("id", "time"))
     } else {
-        base_hazard <- merge(base_hazard, as.data.table(basehaz(model$fit, centered = FALSE)), by = "time")
+        min_time <- 0
     }
-    base_hazard[, hazard_minus := c(0, hazard[-.N])]
+    ## Add 0 row to base_hzazrd at min_time
+    if (min_time < base_hazard$time[1]) {
+        base_hazard <- rbindlist(list(data.table(hazard = 0, time = min_time, hazard_prev = 0), base_hazard))
+    }
+    base_hazard_matched_exact <- base_hazard[data, on = "time", nomatch = 0]
+    base_hazard_matched_exact[, exact_match := TRUE]
+
+    base_hazard_all_matched <- base_hazard[data, on = "time", roll = TRUE]
+    base_hazard_all_matched[, exact_match := FALSE]
     
     ## Merge/roll forward and calculate cumulative hazard function
-    dt <- base_hazard[dt, roll = TRUE, on = "time"]
-    dt <- merge(dt, exp_lp_dt, by = "id")
-    dt[, Lambda := exp_lp * hazard]
-    dt[, Lambda_minus := exp_lp * hazard_minus]
-    dt[, c("exp_lp", "hazard", "hazard_minus") := NULL]
-    dt
+    data <- base_hazard_all_matched[base_hazard_matched_exact, exact_match := TRUE, on = "time"]
+    data[exact_match == FALSE, hazard_minus := hazard]
+    data[exact_match == TRUE, hazard_minus := hazard_prev]
+    data[, exact_match := NULL]
+    data[, hazard_prev := NULL]
+    
+    if (!is.null(time_ref)) {
+        data_time_ref <- data[variable == time_ref]
+        data_time_ref[time == 0, "hazard" := 0]
+        data_time_ref[, c("hazard_minus", "variable", "time"):= NULL]
+        setnames(data_time_ref, "hazard", "hazard_time_ref")
+        data <- data[variable != time_ref]
+        data[, variable := NULL]
+        data <- merge(data, data_time_ref, by = "id", all.x = TRUE)
+    } else {
+        data[, hazard_time_ref := 0]
+    }
+    data <- merge(data, exp_lp_dt, by = "id")
+    data[, Lambda := exp_lp * (hazard - hazard_time_ref)]
+    data[, Lambda_minus := exp_lp * (hazard_minus - hazard_time_ref)]
+    data[, c("exp_lp", "hazard", "hazard_minus", "hazard_time_ref") := NULL]
+    data
 }
+
+
 ######################################################################
 ### censoring_martingale.R ends here

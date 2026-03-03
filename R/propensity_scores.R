@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Feb 27 2026 (19:25) 
+## Last-Updated: Mar  2 2026 (23:06) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 42
+##     Update #: 137
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -27,6 +27,7 @@ propensity_scores <- function(last_event,
                               lag,
                               verbose,
                               data_baseline) {
+    hazard_minus <- hazard <- event_k <- time_0  <- exp_lp <- surv <- id <- event_k_prev <- survival_censoring_k <- A_k <- propensity_k <- propensity_0 <- NULL
     ## Handle marginal censoring
     if (is_censored && marginal_censoring) {
         ## Remove constant variables
@@ -70,46 +71,25 @@ propensity_scores <- function(last_event,
                                               baseline_covariates = baseline_covariates)
 
             } else {
-                ## FIXME: make marginal censoring hazard work without cox
+                # Ensure Cox.
+                # Too difficult without...
+                # Have to compute Lambda^c (T_(k,i)- | F_(k-1,i)).
                 if (!inherits(marginal_censoring_fit$fit, "coxph")) {
                     stop("Censoring model must be a Cox proportional hazards model when marginal_censoring is TRUE.")
                 }
-                base_hazard <- as.data.table(basehaz(marginal_censoring_fit$fit, centered = FALSE))
-                ## First find survival probability of not being censored at time T_k- (when the covariates are zero)
-                baseline_hazard_minus <- copy(base_hazard)
-                baseline_hazard_minus$hazard <- c(0, head(baseline_hazard_minus$hazard, -1))
-                baseline_hazard <- copy(base_hazard)
-                setnames(baseline_hazard_minus, c("time", "hazard"), c(paste0("time_", k), "hazard_minus"))
-                setnames(baseline_hazard, "time", paste0("time_", k))
-                baseline_hazard_minus <- baseline_hazard_minus[data[, c("id", paste0("event_", k), paste0("time_", k), baseline_covariates), with = FALSE], roll = TRUE, on = paste0("time_", k)]
-                baseline_hazard_minus[is.na(hazard_minus), hazard_minus := 0]
-                baseline_hazard <- baseline_hazard[data[, c("id", paste0("event_", k), paste0("time_", k), baseline_covariates), with = FALSE], roll = TRUE, on = paste0("time_", k)]
-                baseline_hazard[is.na(hazard), hazard := 0]
-                baseline_hazard_minus <- merge(baseline_hazard, baseline_hazard_minus, by = c("id", baseline_covariates, paste0("event_", k), paste0("time_", k)))
-                ## Split into whether or not, the event time is registered on the data set consisting only of terminal events
-                ## For the Cox model, if t is not an event time, then the survival fucntion G(t- | x) = G(t | x)
-                ## A and L events are NOT event times for the marginal Cox model
-                baseline_hazard_minus[, hazard_minus := hazard_minus * 1 * (event_k %in% c("C", "Y", "D", "tauend")) + hazard * 1 * (event_k %in% c("A", "L")), env = list(event_k = paste0("event_", k))]
-                baseline_hazard_minus[, c(paste0("event_", k), "hazard") := NULL]
 
-                ## Then find survival probability of not being censored at time T_(k-1) (when the covariates are zero)
-                if (k > 1) {
-                    baseline_hazard <- copy(base_hazard)
-                    setnames(baseline_hazard, "time", paste0("time_", k - 1))
-                    baseline_hazard <- baseline_hazard[data[, c("id", paste0("time_", k - 1), baseline_covariates), with = FALSE], roll = TRUE, on = paste0("time_", k - 1)]
-                    baseline_hazard[is.na(hazard), hazard := 0]
-                } else {
-                    baseline_hazard <- baseline_hazard_minus[, -c("hazard_minus", paste0("time_", k)), with = FALSE]
-                    baseline_hazard[, time_0 := 0]
-                    baseline_hazard[, hazard := 0]
-                }
-                baseline_hazard <- merge(baseline_hazard, baseline_hazard_minus, by = c("id", baseline_covariates))
-                baseline_hazard[, exp_lp := predict(marginal_censoring_fit$fit, newdata = .SD, type = "risk", reference = "zero")]
+                data_use <- copy(data)[event_prev %in% c("A", "L"), env = list(
+                    event_prev = paste0("event_", k - 1)
+                )]
+                data_use[, c("time", "time_prev") := list(time_k, time_k_prev), env = list(
+                    time_k = paste0("time_", k),
+                    time_k_prev = paste0("time_", k - 1)
+                )]
 
-                ## Survival probability of not being censored at time T_k- (when the covariates are zero) given not censored at time T_(k-1)
-                baseline_hazard[, surv := exp(-exp_lp * (hazard_minus - hazard))]
-                learn_censoring <- list()
-                learn_censoring$pred <- baseline_hazard[id %in% at_risk_interevent$id, surv]
+                data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit, data_use, time_ref = "time_prev")
+                learn_censoring <- list(
+                    pred = exp(-data_use$Lambda_minus)
+                )
             }
             if (k > 1) {
                 data[event_k_prev %in% c("A", "L"),
@@ -188,7 +168,7 @@ propensity_scores <- function(last_event,
         ## check whethe any baseline covariates should be deleted
         baseline_covariates <- setdiff(
             baseline_covariates,
-            names(which(sapply(data[, ..baseline_covariates], function(x) length(unique(x)) <= 1)))
+            names(which(sapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1)))
         )
         if (verbose) {
             message("Fitting baseline treatment propensity model with formula: ", deparse(formula_treatment), "\n")
@@ -213,3 +193,4 @@ propensity_scores <- function(last_event,
 
 ######################################################################
 ### get_propensity_scores.R ends here
+

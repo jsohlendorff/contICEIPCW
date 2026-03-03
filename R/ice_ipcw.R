@@ -63,6 +63,31 @@
 #' Current target parameters implemented: Absolute risk.
 #'
 #' @export
+#' @examples
+#' set.seed(15)
+#' data_continuous <- simulate_continuous_time_data(
+#'   n = 1000,
+#'   uncensored = FALSE,
+#'   no_competing_events = FALSE,
+#'   baseline_rate_list = list(
+#'     A = 0.005,
+#'     L = 0.001,
+#'     C = 0.0008,
+#'     Y = 0.0001,
+#'     D = 0.00015
+#'   )
+#' )
+#'
+#' debias_ice_ipcw(
+#'   data = data_continuous,
+#'   time_horizon = 720,
+#'   model_pseudo_outcome = "oipcw_expit",
+#'   model_treatment = "learn_glm_logistic",
+#'   model_hazard = "learn_coxph",
+#'   time_covariates = c("A", "L"),
+#'   baseline_covariates = c("age", "A_0", "L_0"),
+#'   conservative = TRUE
+#' )
 debias_ice_ipcw <- function(data,
                             time_horizon,
                             model_pseudo_outcome = "scaled_quasibinomial",
@@ -78,8 +103,9 @@ debias_ice_ipcw <- function(data,
                             return_ic = FALSE,
                             grid_size = NULL,
                             lag = NULL,
-                            verbose = TRUE,
+                            verbose = FALSE,
                             semi_tmle = FALSE) {
+    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
     ## Check user input
     check_input(baseline_covariates, time_covariates, data, time_horizon)
 
@@ -213,9 +239,9 @@ debias_ice_ipcw <- function(data,
                 ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
                 ic_final$f_pseudo_outcome <- ic_final$pseudo_outcome / max_pseudo_outcome
                 ic_final$f_q_prediction <- ic_final$q_prediction / max_pseudo_outcome
-                epsilonhat <- glm(f_pseudo_outcome~inverse_cumulative_probability_weights-1+offset(qlogis(f_q_prediction)),family="quasibinomial",data = ic_final)$coefficients[1]
+                epsilonhat <- stats::glm(f_pseudo_outcome~inverse_cumulative_probability_weights-1+offset(qlogis(f_q_prediction)),family="quasibinomial",data = ic_final)$coefficients[1]
                 ic_final[, c("f_pseudo_outcome", "f_q_prediction") := NULL]
-                future_prediction <- plogis(qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$inverse_cumulative_probability_weights))
+                future_prediction <- stats::plogis(stats::qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$inverse_cumulative_probability_weights))
                 ic_final$q_prediction <- future_prediction
                 q_prediction$future_prediction <- future_prediction
             }

@@ -49,7 +49,7 @@ get_history_of_variables <- function(data,
     if (!type == "martingale") {
         history_of_variables <- setdiff(
             history_of_variables,
-            names(which(sapply(data[, ..history_of_variables], function(x) length(unique(x)) <= 1)))
+            names(which(sapply(data[, .SD, .SDcols = history_of_variables], function(x) length(unique(x)) <= 1)))
         )
     }
     history_of_variables
@@ -58,6 +58,7 @@ get_history_of_variables <- function(data,
 get_at_risk_data <- function(data,
                              k,
                              time_horizon = NULL) {
+    event_k_previous <- time_previous <- time_k <- time_k_minus_1 <- time_j <- event_j <- NULL
     ## Remove unused factor levels
     if (k == 1) {
         at_risk_interevent <- at_risk_before_time_horizon <- data

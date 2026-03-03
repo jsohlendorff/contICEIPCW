@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (12:26) 
 ## Version: 
-## Last-Updated: Feb 27 2026 (13:53) 
+## Last-Updated: Mar  2 2026 (15:49) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 14
+##     Update #: 15
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -17,6 +17,7 @@
 
 ## Adaptively select last event based on the data if not provided
 select_last_event <- function(timevarying_data, time_horizon, last_event) {
+    time <- event <- event_number <- id <- N <- NULL
     if (is.null(last_event)) {
         at_risk_table <- timevarying_data[time < time_horizon & event %in% c("A", "L"), .N, by = "event_number"]
         if (nrow(at_risk_table) == 0) {

@@ -1,6 +1,6 @@
 ## Simulate from an exponential proportional hazards model
 rexponential_proportional_hazard <- function(n, rate, eta) {
-    u <- runif(n)
+    u <- stats::runif(n)
     (-log(u) / (rate * exp(eta)))
 }
 
@@ -152,6 +152,7 @@ simulate_continuous_time_data <- function(n,
                                           K = 3,
                                           limit_event_A = 1,
                                           limit_event_L = 1) {
+    L_0 <- A_0 <- age <- id <- time <- event <- L <- A <- n_A_events <- n_L_events <- new_A <- entrytime <- NULL
     if (!is.null(static_intervention)) {
         static_intervention_baseline <- static_intervention
     }
@@ -208,7 +209,7 @@ simulate_continuous_time_data <- function(n,
             a_time <- rep(NA, nrow(people_atrisk))
             a_time[max_event_reached_A] <- Inf
             a_time[treatment_event & !max_event_reached_A] <- visitation_interval +
-                rnorm(nrow(people_atrisk[treatment_event & !max_event_reached_A]), 0, visitation_sd)
+                stats::rnorm(nrow(people_atrisk[treatment_event & !max_event_reached_A]), 0, visitation_sd)
             a_time[!treatment_event & !max_event_reached_A] <- rexponential_proportional_hazard(
                 n = nrow(people_atrisk[!treatment_event & !max_event_reached_A]),
                 rate = baseline_rate_list$A,

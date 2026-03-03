@@ -22,12 +22,18 @@ arma::vec estimating_equation_cpp(
     const arma::mat& X,
     const arma::vec& Y,
     std::string model_type,
+    arma::vec beta,
+    std::string solve_opts = "fast",
     int maxit = 100,
-    double tol = 1e-8
-) {
+    double tol = 1e-8,
+    bool verbose = false) {
   
   const int p = X.n_cols;
-  vec beta(p, fill::zeros);
+  // check that beta has the right length
+  if(beta.n_elem != p) {
+    stop("Length of beta must match number of columns in X");
+  }
+  // vec beta(p, fill::zeros);
   
   bool is_oipcw     = model_type.find("oipcw") != std::string::npos;
   bool is_nls_expit = model_type == "nls_expit";
@@ -93,7 +99,29 @@ arma::vec estimating_equation_cpp(
     }
     
     // Newton step
-    vec step = solve(J, F, solve_opts::fast);
+    // Fast but less stable: solve J step = F
+    vec step;
+    if (solve_opts == "fast") {
+      step = solve(J, F, solve_opts::fast);
+    } else if (solve_opts == "refine") {
+      step = solve(J, F, solve_opts::refine);
+    } else if (solve_opts == "equilibrate") {
+      step = solve(J, F, solve_opts::equilibrate);
+    } else if (solve_opts == "allow_ugly") {
+      step = solve(J, F, solve_opts::allow_ugly);
+    } else if (solve_opts == "no_approx") {
+      step = solve(J, F, solve_opts::no_approx);
+    } else if (solve_opts == "force_sym") {
+      step = solve(J, F, solve_opts::force_sym);
+    } else if (solve_opts == "force_approx") {
+      step = solve(J, F, solve_opts::force_approx);
+    } else {
+      stop("Unknown solve_opts");
+    }
+
+    if (verbose) {
+      Rcpp::Rcout << "step is " << step.t() << std::endl;
+    }
     
     // Step halving for stability
     double step_factor = 1.0;
@@ -102,6 +130,9 @@ arma::vec estimating_equation_cpp(
     while(!beta_new.is_finite() && step_factor > 1e-6) {
       step_factor *= 0.5;
       beta_new = beta - step_factor * step;
+      if (verbose) {
+	Rcpp::Rcout << "beta_new is " << beta_new.t() << std::endl;
+      }
     }
     
     if(max(abs(beta_new - beta)) < tol)

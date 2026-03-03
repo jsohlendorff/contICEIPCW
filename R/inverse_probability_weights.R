@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (18:43) 
 ## Version: 
-## Last-Updated: Feb 27 2026 (20:07) 
+## Last-Updated: Mar  2 2026 (11:55) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 24
+##     Update #: 26
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -16,10 +16,11 @@
 ### Code:
 ## Estimate IPW weights in efficient influence function
 cumulative_inverse_probability_weights <- function(data, static_intervention, time_horizon, return_ipw, last_event) {
+    survival_censoring_0 <- cum_treatment_k <- cum_propensity_k <- cum_survival_censoring_k <- event_k_prev <- ipw_k <- event_k <- time_k <- survival_censoring_k <- inverse_cumulative_probability_weights <- NULL
     ## Cumulative product of propensity scores (treatment)
     data[, paste0("propensity_", last_event) := 1]
     propensity_cols <- paste0("propensity_", seq(0, last_event))
-    data[, (propensity_cols) := lapply(.SD, function(x) fifelse(is.na(x), 1, x)), .SDcols = propensity_cols]
+    data[, (propensity_cols) := lapply(.SD, function(x) data.table::fifelse(is.na(x), 1, x)), .SDcols = propensity_cols]
     data[, paste0("cum_propensity_", seq(0, last_event)) := Reduce(`*`, .SD, accumulate = TRUE), .SDcols = propensity_cols]
 
     ## Cumulative product of censoring probabilities

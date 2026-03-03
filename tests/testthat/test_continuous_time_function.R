@@ -1,5 +1,4 @@
 library(testthat)
-setwd("~/contICEIPCW")
 
 test_that("test continuous time function (uncensored)", {
     library(data.table)

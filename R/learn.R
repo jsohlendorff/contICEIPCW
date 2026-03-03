@@ -1,5 +1,7 @@
 expit <- function(x) 1 / (1 + exp(-x))
-probit <- function(x) pnorm(x)
+logit <- function(p) log(p / (1 - p))
+probit <- function(x) stats::pnorm(x)
+inv_probit <- function(p) stats::qnorm(p)
 
 # Model to use for the outcome regression which returns a prediction function
 # for the chosen model.
@@ -35,7 +37,7 @@ learn_Q <- function(model_type,
     }
     
     if (model_type == "quasibinomial") {
-        fit <- glm(
+        fit <- stats::glm(
             as.formula(paste0(
                 outcome_name,
                 " ~ ", history_of_variables_string
@@ -48,7 +50,7 @@ learn_Q <- function(model_type,
         }
     } else if (model_type == "scaled_quasibinomial") {
         data_learn$tt_weight <- data_learn[[outcome_name]] / max_weight
-        fit <- glm(
+        fit <- stats::glm(
             as.formula(paste0(
                 "tt_weight ~ ", history_of_variables_string
             )),
@@ -85,20 +87,68 @@ learn_Q <- function(model_type,
        ## i.e., columns that would normally be removed in a glm fit
        qr_coef <- qr.coef(qr(X),Y)
        X <- X[, !is.na(qr_coef), drop = FALSE]
-       
-       beta_init <- rep(0, ncol(X))
 
-       ## Call to fast C++ implementation of the estimating equation solver (ChatGPT)
-       fit <- as.vector(estimating_equation_cpp(
-           X = X,
-           Y = Y,
-           model_type = model_type,
-           maxit = 1000,
-           tol = 1e-8
-       ))
+       ## Start with initial parameters corresponding to intercept only model
+       intercept <- ifelse(grepl("expit", model_type), logit(mean(Y)), inv_probit(mean(Y)))
+       beta_init <- c(intercept, rep(0, ncol(X) - 1))
 
        ## Determine if expit or probit from model_type
        link_function <- ifelse(grepl("expit", model_type), expit, probit)
+
+              if (grepl("oipcw", model_type)) {
+           g <- function(beta, X, Y) {
+               eta <- X %*% beta
+               as.vector(t(X) %*% (Y - link_function(eta)))
+           }
+       } else if (model_type == "nls_expit") {
+           g <- function(beta, X, Y) {
+               eta <- X %*% beta
+               mu <- expit(eta)
+               as.vector(t(X) %*% ((Y - mu) * mu * (1 - mu)))
+           } 
+       } else if (model_type == "nls_probit") {
+           g <- function(beta, X, Y) {
+               eta <- X %*% beta
+               mu <- probit(eta)
+               as.vector(t(X) %*% ((Y - mu) * dnorm(eta)))
+           }
+       }
+       
+       ## Call to fast C++ implementation of the estimating equation solver (ChatGPT)
+       ## only use this with OIPCW;
+       ## NLS has serious issues with the C++ solver.
+       if (grepl("oipcw", model_type)) {
+           fit <- as.vector(suppressWarnings(estimating_equation_cpp(
+               X = X,
+               Y = Y,
+               model_type = model_type,
+               maxit = 1000,
+               tol = 1e-8,
+               beta = beta_init,
+               solve_opts = "force_approx"
+           )))
+       } else {
+           fit <- nleqslv::nleqslv(f = g, x = beta_init, X = X, Y = Y, control = list(maxit = 1000, allowSingular = TRUE))$x
+       }
+      
+       ## Check if the solution is very large or if the estimating equation does not seem to be solved
+       if (any(abs(fit) > 1e2) ) {
+           warning("The solution of the estimating equation solver is very large.")
+           message("Estimated parameters / estimating equation value: ")
+           print(fit)
+           print(g(fit, X, Y))
+       }
+       if (any(abs(g(fit, X, Y)) > 1e-2)){
+           warning("The estimating equation does not seem to be solved which may indicate non-convergence.")
+           message("Estimated parameters / estimating equation value: ")
+           print(fit)
+           print(g(fit, X, Y))
+       }
+
+       if (any(is.na(fit))) {
+           warning("The estimating equation solver did not converge.")
+           fit <- beta_init
+       }
 
        predict_fun <- function(data) {
            X_new <- model.matrix(as.formula(paste0(
@@ -135,10 +185,9 @@ learn_h2o <- function(character_formula,
                       nfolds = 10,
                       verbose = FALSE,
                       ...) {
-  requireNamespace("h2o", quietly = TRUE)
   formula_object <- as.formula(character_formula)
   outcome_name <- as.character(formula_object[[2]])
-  history_of_variables <- labels(terms(formula_object))
+  history_of_variables <- labels(stats::terms(formula_object))
   data <- data[, c(outcome_name, history_of_variables), with = FALSE]
   ## Check if only 0/1 values in outcome_name
   if (all(data[[outcome_name]] %in% c(0, 1))) {
@@ -152,10 +201,10 @@ learn_h2o <- function(character_formula,
   suppressWarnings({
     h2o::h2o.init()
   })
-  data_h2o <- as.h2o(data)
+  data_h2o <- h2o::as.h2o(data)
 
   ## AutoML
-  aml <- h2o.automl(
+  aml <- h2o::h2o.automl(
     y = outcome_name,
     training_frame = data_h2o,
     max_runtime_secs = max_runtime_secs,
@@ -178,14 +227,14 @@ learn_h2o <- function(character_formula,
   if (distribution == "bernoulli") {
     ## For binary, we need to convert the predictions to a vector
     predict_fun <- function(data) {
-      newdata_h2o <- as.h2o(data)
-      as.vector(h2o.predict(best_model, newdata = newdata_h2o)$p1) # p1 for class 1 probability
+      newdata_h2o <- h2o::as.h2o(data)
+      as.vector(h2o::h2o.predict(best_model, newdata = newdata_h2o)$p1) # p1 for class 1 probability
     }
   } else {
     ## For regression, we can directly use the predict method
     predict_fun <- function(data) {
-      newdata_h2o <- as.h2o(data)
-      as.vector(h2o.predict(best_model, newdata = newdata_h2o)$predict)
+      newdata_h2o <- h2o::as.h2o(data)
+      as.vector(h2o::h2o.predict(best_model, newdata = newdata_h2o)$predict)
     }
   }
   if (is.null(intervened_data)) {
@@ -198,11 +247,12 @@ learn_h2o <- function(character_formula,
 # coph learner for censoring
 learn_coxph <- function(character_formula,
                         data) {
+  exp_lp <- surv <- hazard <- NULL
   formula_cox <- as.formula(character_formula)
   ## Fit the Cox model
   fit <- coxph(formula_cox, data = data, x = TRUE)
   baseline_hazard_minus <- as.data.table(basehaz(fit, centered = FALSE))
-  baseline_hazard_minus$hazard <- c(0, head(baseline_hazard_minus$hazard, -1))
+  baseline_hazard_minus$hazard <- c(0, utils::head(baseline_hazard_minus$hazard, -1))
   setnames(baseline_hazard_minus, "time", as.character(formula_cox[[2]][2]))
   baseline_hazard_minus <- baseline_hazard_minus[data, roll = TRUE, on = as.character(formula_cox[[2]][2])]
   baseline_hazard_minus[, exp_lp := predict(fit, newdata = .SD, type = "risk", reference = "zero")]
@@ -214,13 +264,14 @@ learn_glm_logistic <- function(character_formula,
                                data) {
   formula_object <- as.formula(character_formula)
   ## Fit the logistic regression model
-  fit <- glm(formula_object, data = data, family = binomial(link = "logit"))
+  fit <- stats::glm(formula_object, data = data, family = binomial(link = "logit"))
   ## Predict on original data
   list(pred = predict(fit, type = "response"), predict_fun = fit)
 }
 
 ## Wrapper function to predict the outcome under an intervention
 predict_intervention <- function(data, k, predict_fun, static_intervention) {
+  event_k <- A_0 <- NULL
   intervened_data <- copy(data)
   if (k > 0) {
     intervened_data[event_k == "A", paste0("A_", k) := static_intervention, env = list(event_k = paste0("event_", k))]
