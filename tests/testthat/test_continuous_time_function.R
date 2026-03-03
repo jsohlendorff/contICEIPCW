@@ -459,11 +459,11 @@ test_that("test continuous time function (censored; competing events; oicpw_prob
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.28477112687631057,
-                                      se = 0.016845859335962235,
-                                      lower = 0.2517532425778246,
-                                      upper = 0.3177890111747965,
-                                      ice_ipcw_estimate = 0.2846318282075112,
+                                      estimate = 0.2847569509671835,
+                                      se = 0.016846434902731817,
+                                      lower = 0.25173793855782917,
+                                      upper = 0.31777596337653785,
+                                      ice_ipcw_estimate = 0.284527778014968,
                                       ipw = 0.28495738884128674
                                   )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))

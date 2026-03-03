@@ -35,10 +35,10 @@ arma::vec estimating_equation_cpp(
   }
   // vec beta(p, fill::zeros);
   
-  bool is_oipcw     = model_type.find("oipcw") != std::string::npos;
+  bool is_oipcw_expit = model_type == "oipcw_expit";
+  bool is_oipcw_probit = model_type == "oipcw_probit";
   bool is_nls_expit = model_type == "nls_expit";
-  bool is_nls_probit= model_type == "nls_probit";
-  bool is_expit     = model_type.find("expit") != std::string::npos;
+  bool is_nls_probit = model_type == "nls_probit";
   
   for(int iter = 0; iter < maxit; iter++) {
     
@@ -47,20 +47,35 @@ arma::vec estimating_equation_cpp(
     mat J;
     
     // ==============================
-    // OIPCW score: X'(Y - mu)
+    // OIPCW score: expit
     // ==============================
-    if(is_oipcw) {
-      
-      if(is_expit) {
-        mu = expit_vec(eta);
-        w  = mu % (1.0 - mu);
-      } else {
-        mu  = normcdf(eta);
-        w   = normpdf(eta);
-      }
+    if (is_oipcw_expit) {
+      mu = expit_vec(eta);
+      w  = mu % (1.0 - mu);
       
       F = crossprod_vec(X, Y - mu);
       J = -crossprod_weighted(X, w);
+    }
+
+    // ==============================
+    // OIPCW score: probit
+    // ==============================
+    else if (is_oipcw_probit) {
+      mu  = normcdf(eta);
+      w  = mu % (1.0 - mu);
+      pdf = normpdf(eta) / w;
+      
+      vec r = Y - mu;
+
+      F = crossprod_vec(X, r % pdf);
+      
+      vec d_pdf = -eta % normpdf(eta) / w 
+	- pdf % ( (1.0 - 2.0*mu) % normpdf(eta) / w );
+  
+      vec weight = pdf % normpdf(eta) + r % d_pdf;
+  
+      J = -crossprod_weighted(X, weight);
+
     }
     
     // ==============================
