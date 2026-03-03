@@ -95,10 +95,15 @@ learn_Q <- function(model_type,
        ## Determine if expit or probit from model_type
        link_function <- ifelse(grepl("expit", model_type), expit, probit)
 
-              if (grepl("oipcw", model_type)) {
+       if (model_type == "oipcw_expit") {
            g <- function(beta, X, Y) {
                eta <- X %*% beta
-               as.vector(t(X) %*% (Y - link_function(eta)))
+               as.vector(t(X) %*% (Y - expit(eta)))
+           }
+       } else if (model_type == "oipcw_probit") {
+           g <- function(beta, X, Y) {
+               eta <- X %*% beta
+               as.vector(t(X) %*% ((Y - probit(eta)) * dnorm(eta) / (probit(eta) * (1 - probit(eta)))))
            }
        } else if (model_type == "nls_expit") {
            g <- function(beta, X, Y) {
