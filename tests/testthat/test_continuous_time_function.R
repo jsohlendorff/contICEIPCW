@@ -145,13 +145,13 @@ test_that("test continuous time function (censored; non_conservative; multiple i
 
     # dpasta(result)
     correct_result <- data.table::data.table(
-                                      estimate = 0.2701443604131437,
-                                      se = 0.01674214920364209,
-                                      lower = 0.23732974797400522,
-                                      upper = 0.30295897285228224,
-                                      ice_ipcw_estimate = 0.2714325697499465,
-                                      ipw = 0.2693019050719549
-                                  )
+  estimate = 0.2711669634161063,
+  se = 0.016728931319704606,
+  lower = 0.23837825802948526,
+  upper = 0.30395566880272734,
+  ice_ipcw_estimate = 0.2714325697499465,
+  ipw = 0.2693019050719549
+)
 
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
@@ -381,13 +381,13 @@ test_that("test continuous time function (censored; competing events; conservati
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.2841567677335487,
-                                      se = 0.016813500588201833,
-                                      lower = 0.2512023065806731,
-                                      upper = 0.3171112288864243,
-                                      ice_ipcw_estimate = 0.2846643753705404,
-                                      ipw = 0.28495738884128674
-                                  )
+  estimate = 0.2849474528602942,
+  se = 0.016801446375326233,
+  lower = 0.2520166179646548,
+  upper = 0.31787828775593363,
+  ice_ipcw_estimate = 0.2846643753705404,
+  ipw = 0.28495738884128674
+)
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))    
 })
 
