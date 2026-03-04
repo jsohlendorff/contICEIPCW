@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar  4 2026 (17:11) 
+## Last-Updated: Mar  4 2026 (22:34) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 146
+##     Update #: 185
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -14,28 +14,80 @@
 #----------------------------------------------------------------------
 ## 
 ### Code:
+#' @title Function for adding propensity scores (treatment) and censoring models to the prepared data object
+#'
+#' @param prepared_data An object of class "prepare_data_continuous" containing the prepared data.
+#' @param model_treatment A string specifying the type of model to use for the treatment propensity score.
+#' Options include \code{"learn_glm_logistic"} (logistic regression).
+#' @param model_hazard A string specifying the type of model to use for the cumulative hazard function.
+#' Options include \code{"learn_coxph"} (Cox proportional hazards model).
+#' @param lag Optional numeric indicating the number of previous events included in the formulas for the models.
+#' @param verbose Logical; if \code{TRUE}, prints additional information during model fitting.
+#'
+#' @export
+#' @examples
+#' set.seed(15)
+#' data_continuous <- simulate_continuous_time_data(
+#'   n = 1000,
+#'   uncensored = FALSE,
+#'   no_competing_events = FALSE,
+#'   baseline_rate_list = list(
+#'     A = 0.005,
+#'     L = 0.001,
+#'     C = 0.0008,
+#'     Y = 0.0001,
+#'     D = 0.00015
+#'   )
+#' )
+#' prep_data <- prepare_data(
+#'  data = data_continuous,
+#'  max_time_horizon = 720,
+#' time_covariates = c("A", "L"),
+#' baseline_covariates = c("age", "A_0", "L_0"),
+#' marginal_censoring = TRUE
+#' )
+#' propensity_score_data <- propensity_scores(
+#'  prepared_data = prep_data,
+#' model_treatment = "learn_glm_logistic",
+#' model_hazard = "learn_coxph",
+#' verbose = TRUE
+#' )
+#' 
 ## Function for getting the propensity scores (treatment) and censoring models
-propensity_scores <- function(last_event,
-                              data,
-                              time_horizon,
+propensity_scores <- function(prepared_data, 
                               model_treatment,
                               model_hazard,
-                              is_censored,
-                              time_covariates,
-                              baseline_covariates,
-                              marginal_censoring,
-                              lag,
-                              verbose,
-                              data_baseline) {
+                              lag = NULL,
+                              verbose = FALSE) {
+    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
+    if (!inherits(prepared_data, "prepare_data_continuous")) {
+        stop("prepared_data must be of class 'prepare_data_continuous'.")
+    }
+    data <- prepared_data$wide_data
+    is_censored <- prepared_data$is_censored
+    data_marginal_censoring <- prepared_data$data_marginal_censoring
+    last_event <- prepared_data$last_event
+    marginal_censoring <- prepared_data$marginal_censoring
+    time_covariates <- prepared_data$time_covariates
+    baseline_covariates <- prepared_data$baseline_covariates
+    
+    ## Check user input if censored
+    if (is_censored && is.null(model_hazard)) {
+        stop(
+            "Censoring is present, but no censoring model is provided.
+             Please provide a censoring model such as `model_hazard = 'learn_coxph'`."
+        )
+    }
+
     hazard_minus <- hazard <- event_k <- time_0  <- exp_lp <- surv <- id <- event_k_prev <- survival_censoring_k <- A_k <- propensity_k <- propensity_0 <- NULL
     ## Handle marginal censoring
     if (is_censored && marginal_censoring) {
         ## Remove constant variables
         censoring_covariates <- baseline_covariates[
-            data_baseline[, vapply(.SD, function(x) length(unique(x)) > 1, logical(1)),
+            data_marginal_censoring[, vapply(.SD, function(x) length(unique(x)) > 1, logical(1)),
                            .SDcols = baseline_covariates]
         ]
-        marginal_censoring_fit <- hazard_fit(data = data_baseline,
+        marginal_censoring_fit <- hazard_fit(data = data_marginal_censoring,
                                model_hazard = model_hazard,
                                outcome_string = "Surv(time, event == \"C\")",
                                covariates = censoring_covariates,
@@ -169,7 +221,7 @@ propensity_scores <- function(last_event,
         ## check whethe any baseline covariates should be deleted
         baseline_covariates <- setdiff(
             baseline_covariates,
-            names(which(sapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1)))
+            names(which(vapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1))))
         )
         if (verbose) {
             message("Fitting baseline treatment propensity model with formula: ", deparse(formula_treatment), "\n")
@@ -188,7 +240,11 @@ propensity_scores <- function(last_event,
         }
         )]
     }
-    marginal_censoring_fit
+    out<-list(marginal_censoring_fit = marginal_censoring_fit,
+              data = data,
+              prepared_data_object = prepared_data)
+    class(out) <- "debiased_prepared"
+    out
     ##list(marginal_censoring_fit = marginal_censoring_fit, censoring_models = censoring_models)
 }
 

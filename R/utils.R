@@ -49,7 +49,7 @@ get_history_of_variables <- function(data,
     if (!type == "martingale") {
         history_of_variables <- setdiff(
             history_of_variables,
-            names(which(sapply(data[, .SD, .SDcols = history_of_variables], function(x) length(unique(x)) <= 1)))
+            names(which(vapply(data[, .SD, .SDcols = history_of_variables], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1))))
         )
     }
     history_of_variables

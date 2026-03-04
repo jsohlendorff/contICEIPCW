@@ -50,10 +50,10 @@ check_input <- function(baseline_covariates,
     }
 
     ## Check that the variables specified in time_covariates and baseline_covariates do not contain NULLs or NAs
-    if (any(sapply(data$timevarying_data[, .SD, .SDcols = time_covariates], function(x) any(is.null(x) | is.na(x))))) {
+    if (any(vapply(data$timevarying_data[, .SD, .SDcols = time_covariates], function(x) any(is.null(x) | is.na(x)), FUN.VALUE = logical(1)))) {
         stop("Time-varying covariates must not contain NULL or NA values.")
     }
-    if (any(sapply(data$baseline_data[, .SD, .SDcols = baseline_covariates], function(x) any(is.null(x) | is.na(x))))) {
+    if (any(vapply(data$baseline_data[, .SD, .SDcols = baseline_covariates], function(x) any(is.null(x) | is.na(x)), FUN.VALUE = logical(1)))) {
         stop("Baseline covariates must not contain NULL or NA values.")
     }
 

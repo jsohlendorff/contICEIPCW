@@ -6,16 +6,11 @@
 at a given time horizon in continuous time.}
 \usage{
 debias_ice_ipcw(
-  data,
+  prepared_data,
   time_horizon,
   model_pseudo_outcome = "scaled_quasibinomial",
-  model_treatment = "learn_glm_logistic",
   model_hazard = "learn_coxph",
-  marginal_censoring = FALSE,
   conservative = FALSE,
-  time_covariates,
-  baseline_covariates,
-  last_event = NULL,
   static_intervention = 1,
   return_ipw = TRUE,
   return_ic = FALSE,
@@ -26,22 +21,9 @@ debias_ice_ipcw(
 )
 }
 \arguments{
-\item{data}{An object containing two data frames: \code{baseline_data} and
-\code{timevarying_data}. The \code{baseline_data} should contain baseline
-covariates, that is \code{id}, \code{A_0}, \code{L_0}, and the treatment variable
-\code{A_0} must be a binary variable (0/1) and \code{L_0}
-(the initial value of the time-varying covariates) can only be one-dimesional.
-Additional baseline covariates that are not time-varying can be added here.
-The \code{timevarying_data} should contain
-\code{id}, \code{time}, \code{event}, \code{A}, and \code{L} columns, where \code{event} is a
-factor with levels (\code{A}, \code{L}, \code{C}, \code{Y}, \code{D}), i.e., which event happened.
-\code{time} is the time of the corresponding event, \code{A} is the time-varying treatment variable
-and \code{L} is the time-varying covariate which must be one-dimesional
-Note that \code{A}, \code{L}, \code{C}, \code{Y}, and \code{D} are the event types, corresponding to
-\code{Y} (event of interest), \code{D} (competing event), \code{A} (visiting event), \code{L} (covariate event),
-\code{C} (censoring event).}
+\item{prepared_data}{An object of class \code{debiased_prepared} containing the prepared data and relevant information for the debiased ICE-IPCW procedure. This object should be obtained by first running the \code{prepare_data} function and then the \code{propensity_scores} function.}
 
-\item{time_horizon}{A numeric value representing the time horizon for the analysis.}
+\item{time_horizon}{A numeric value representing the time horizon at which to estimate the mean interventional absolute risk.}
 
 \item{model_pseudo_outcome}{A string specifying the type of model to use for the iterative conditional expectations estimator.
 Options include \code{"tweedie"}, \code{"quasibinomial"}, \code{"scaled_quasibinomial"}, \code{"ranger"}, and \code{"log_normal_mixture"}.
@@ -51,25 +33,11 @@ Default is \code{"tweedie"}.
 \code{"ranger"} uses a random forest model from the \code{ranger} package.
 \code{"log_normal_mixture"} uses a log-normal mixture model, which is useful for continuous outcomes with e.g., allows us to model continuous outcomes with a point mass at 0.}
 
-\item{model_treatment}{A string specifying the type of model to use for the treatment propensity score.
-Options include \code{"learn_glm_logistic"} (logistic regression).}
-
 \item{model_hazard}{A string specifying the type of model to use for the cumulative hazard function.
 Options include \code{"learn_coxph"} (Cox proportional hazards model).}
 
-\item{marginal_censoring}{Logical; if \code{TRUE}, assumes censoring depends only on baseline covariates.}
-
 \item{conservative}{Logical; if \code{TRUE}, do not debias the censoring martingale in the efficient influence function.
 Results in massive speed up, but slightly less accurate inference.}
-
-\item{time_covariates}{A character vector of column names in \code{data} that are
-treated as time-varying covariates. Must include values of time-varying covariates at baseline.}
-
-\item{baseline_covariates}{A character vector of column names in \code{data} that are
-considered baseline (time-invariant) covariates. Must include treatment and time-varying covariates.}
-
-\item{last_event}{Optional numeric indicating the last nonterminal event number to consider
-in the outcome.}
 
 \item{static_intervention}{Which intervention to consider; either 0 or 1.}
 
@@ -121,15 +89,26 @@ data_continuous <- simulate_continuous_time_data(
     D = 0.00015
   )
 )
-
-debias_ice_ipcw(
-  data = data_continuous,
-  time_horizon = 720,
-  model_pseudo_outcome = "oipcw_expit",
-  model_treatment = "learn_glm_logistic",
-  model_hazard = "learn_coxph",
-  time_covariates = c("A", "L"),
-  baseline_covariates = c("age", "A_0", "L_0"),
-  conservative = TRUE
+prep_data <- prepare_data(
+ data = data_continuous,
+ max_time_horizon = 720,
+time_covariates = c("A", "L"),
+baseline_covariates = c("age", "A_0", "L_0"),
+marginal_censoring = TRUE
 )
+propensity_score_data <- propensity_scores(
+ prepared_data = prep_data,
+model_treatment = "learn_glm_logistic",
+model_hazard = "learn_coxph",
+verbose = TRUE)
+
+result <- debias_ice_ipcw(
+prepared_data = propensity_score_data,
+time_horizon = 720,
+model_pseudo_outcome = "lm",
+model_hazard = "learn_coxph",
+conservative = TRUE,
+verbose = TRUE
+)
+
 }
