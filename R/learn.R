@@ -121,7 +121,8 @@ learn_Q <- function(model_type,
        
        ## Call to fast C++ implementation of the estimating equation solver (ChatGPT)
        ## only use this with OIPCW;
-       ## NLS has serious issues with the C++ solver.
+       ## NLS has serious issues with the C++ solver
+       tryCatch({
        if (grepl("oipcw", model_type)) {
            fit <- as.vector(suppressWarnings(estimating_equation_cpp(
                X = X,
@@ -134,6 +135,16 @@ learn_Q <- function(model_type,
            )))
        } else {
            fit <- nleqslv::nleqslv(f = g, x = beta_init, X = X, Y = Y, control = list(maxit = 1000, allowSingular = TRUE))$x
+       }},
+       error = function(e) {
+           warning("The estimating equation solver did not converge: ", e$message)
+           fit <<- beta_init
+       })
+       
+       ## Check for NAs or NULL in solution
+       if (any(is.na(fit)) || any(is.null(fit))) {
+           warning("The estimating equation solver did not converge.")
+           fit <- beta_init
        }
       
        ## Check if the solution is very large or if the estimating equation does not seem to be solved
