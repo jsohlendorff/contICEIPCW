@@ -262,18 +262,13 @@ learn_h2o <- function(character_formula,
 
 # coph learner for censoring
 learn_coxph <- function(character_formula,
-                        data) {
+                        data,
+                        time_variable = "time"){
   exp_lp <- surv <- hazard <- NULL
   formula_cox <- as.formula(character_formula)
   ## Fit the Cox model
   fit <- coxph(formula_cox, data = data, x = TRUE)
-  baseline_hazard_minus <- as.data.table(basehaz(fit, centered = FALSE))
-  baseline_hazard_minus$hazard <- c(0, utils::head(baseline_hazard_minus$hazard, -1))
-  setnames(baseline_hazard_minus, "time", as.character(formula_cox[[2]][2]))
-  baseline_hazard_minus <- baseline_hazard_minus[data, roll = TRUE, on = as.character(formula_cox[[2]][2])]
-  baseline_hazard_minus[, exp_lp := predict(fit, newdata = .SD, type = "risk", reference = "zero")]
-  baseline_hazard_minus[, surv := exp(-exp_lp * hazard)]
-  list(pred = baseline_hazard_minus$surv, fit = fit)
+  list(pred = exp(-cumulative_hazard_cox(fit, data, data, time_variable, NULL)$Lambda_minus), fit = fit)
 }
 
 learn_glm_logistic <- function(character_formula,

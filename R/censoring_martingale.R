@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar  3 2026 (13:57) 
+## Last-Updated: Mar  4 2026 (19:28) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 336
+##     Update #: 399
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -86,7 +86,8 @@ censoring_martingale <- function(
     lag = lag,
     k = k,
     time_covariates = time_covariates,
-    baseline_covariates = baseline_covariates
+    baseline_covariates = baseline_covariates,
+    time_variable = time_k
   )
 
   if (!inherits(surv_fit$fit, "coxph"))
@@ -246,24 +247,17 @@ censoring_martingale <- function(
 
   preds <- merge(preds, data_at_risk[, c("id", time_k_prev), with = FALSE], by = "id")
 
-  preds_cens <- cumulative_hazard_cox(
+  preds <- cumulative_hazard_cox(
     marginal_censoring_fit$fit,
     preds,
     data_censoring[, !"time"],
     time_ref = time_k_prev
   )
+  
 
-  setnames(preds_cens,
+  setnames(preds,
            c("Lambda", "Lambda_minus"),
            c("Lambda_C", "Lambda_C_minus"))
-
-  preds <- merge(
-    preds,
-    preds_cens[, .(id, time,
-                   Lambda_C, Lambda_C_minus)],
-    by = c("id", "time"),
-    all.x = TRUE
-  )
 
   preds[, `:=`(
     surv_cens = exp(-Lambda_C_minus),
@@ -319,59 +313,6 @@ censoring_martingale <- function(
         (pseudo_outcome - q_prediction + cens_mg)
   ]
 }
-
-cumulative_hazard_cox <- function(fit, data, covariate_data, time_ref = NULL) {
-    hazard<-hazard_minus<-Lambda<-exp_lp <- Lambda_minus <- NULL
-    ## Find exp(LP); i.e., exponential of linear predictor
-    exp_lp_dt <- data.table(id = covariate_data$id)
-    exp_lp_dt$exp_lp <- predict(fit,
-                                newdata = covariate_data,
-                                type = "risk",
-                                reference = "zero")
-    exp_lp_dt <- unique(exp_lp_dt)
-    ## Baseline cumulative hazard Lambda_0^x (T_j) for all j
-    base_hazard <- as.data.table(survival::basehaz(fit, centered = FALSE))
-    base_hazard[, hazard_prev := c(0, hazard[-.N])]
-
-    if (!is.null(time_ref)) {
-        min_time <- min(data[, time_ref, with = FALSE])
-        data <- data.table::melt(data, id.vars = "id", measure.vars = c("time", time_ref), value.name = "time")
-        data <- unique(data)
-        setkeyv(data, c("id", "time"))
-    } else {
-        min_time <- 0
-    }
-    ## Add 0 row to base_hzazrd at min_time
-    if (min_time < base_hazard$time[1]) {
-        base_hazard <- rbindlist(list(data.table(hazard = 0, time = min_time, hazard_prev = 0), base_hazard))
-    }
-    matched <- base_hazard[data, on = "time", roll = TRUE]
-    matched[, exact_match := data$time %in% base_hazard$time]
-    data <- matched
-    
-    data[exact_match == FALSE, hazard_minus := hazard]
-    data[exact_match == TRUE, hazard_minus := hazard_prev]
-    data[, exact_match := NULL]
-    data[, hazard_prev := NULL]
-    
-    if (!is.null(time_ref)) {
-        data_time_ref <- data[variable == time_ref]
-        data_time_ref[time == 0, "hazard" := 0]
-        data_time_ref[, c("hazard_minus", "variable", "time"):= NULL]
-        setnames(data_time_ref, "hazard", "hazard_time_ref")
-        data <- data[variable != time_ref]
-        data[, variable := NULL]
-        data <- merge(data, data_time_ref, by = "id", all.x = TRUE)
-    } else {
-        data[, hazard_time_ref := 0]
-    }
-    data <- merge(data, exp_lp_dt, by = "id")
-    data[, Lambda := exp_lp * (hazard - hazard_time_ref)]
-    data[, Lambda_minus := exp_lp * (hazard_minus - hazard_time_ref)]
-    data[, c("exp_lp", "hazard", "hazard_minus", "hazard_time_ref") := NULL]
-    data
-}
-
 
 ######################################################################
 ### censoring_martingale.R ends here
