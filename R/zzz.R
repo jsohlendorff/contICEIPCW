@@ -14,4 +14,4 @@ NULL
   invisible()
 }
 
-.datatable.aware = TRUE
+.datatable.aware <- TRUE

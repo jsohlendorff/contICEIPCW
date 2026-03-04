@@ -4,6 +4,7 @@ test_that("test continuous time function (uncensored)", {
     library(data.table)
 
     set.seed(34)
+    
     # Simulate continuous time data with continuous and irregular event times
     data_continuous <- simulate_continuous_time_data(
         n = 1000,
@@ -11,15 +12,24 @@ test_that("test continuous time function (uncensored)", {
         uncensored = TRUE
     )
 
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0")
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = NULL
+    )
+
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
-        data = copy(data_continuous),
+        prepared_data = altered_data,
         time_horizon = 720,
         model_pseudo_outcome = "quasibinomial",
-        model_treatment = "learn_glm_logistic",
         model_hazard = NULL,
-        time_covariates = c("A", "L"),
-        baseline_covariates = c("age", "A_0", "L_0"),
         conservative = TRUE,
         verbose = FALSE
     )
@@ -51,14 +61,25 @@ test_that("test continuous time function (censored; conservative)", {
     )
 
     # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "scaled_quasibinomial",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = FALSE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE
     )
@@ -90,17 +111,27 @@ test_that("test continuous time function (censored; conservative; marginal_censo
     )
 
     # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "scaled_quasibinomial",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
-        conservative = TRUE,
-        verbose = FALSE,
         marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
+        conservative = TRUE,
+        verbose = FALSE
     )
 
     correct_result <- data.table::data.table(
@@ -128,18 +159,27 @@ test_that("test continuous time function (censored; non_conservative; multiple i
         uncensored = FALSE
     )
 
-    # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "scaled_quasibinomial",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
         conservative = FALSE,
         grid_size = 10,
-        marginal_censoring = TRUE,
         verbose = FALSE
     )
 
@@ -168,17 +208,13 @@ test_that("error when time-varying covariates contain NAs", {
     )
     data_continuous$timevarying_data[event == "tauend", L := NA]
     expect_error(
-        debias_ice_ipcw(
-            data = copy(data_continuous),
-            time_horizon = 720,
-            model_pseudo_outcome = "quasibinomial",
-            model_treatment = "learn_glm_logistic",
-            model_hazard = NULL,
-            time_covariates = c("A", "L"),
-            baseline_covariates = c("age", "A_0", "L_0"),
-            conservative = TRUE,
-            verbose = FALSE
-        ),
+        prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    ),
         "Time-varying covariates must not contain NULL or NA values."
     )
 })
@@ -195,17 +231,13 @@ test_that("error when time-varying covariates contain ties", {
     )
     data_continuous$timevarying_data[id == "2", time := 5]
     expect_error(
-        debias_ice_ipcw(
-            data = copy(data_continuous),
-            time_horizon = 720,
-            model_pseudo_outcome = "quasibinomial",
-            model_treatment = "learn_glm_logistic",
-            model_hazard = NULL,
-            time_covariates = c("A", "L"),
-            baseline_covariates = c("age", "A_0", "L_0"),
-            conservative = TRUE,
-            verbose = FALSE
-        ),
+        prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    ),
         "There are ties in event times for some ids. Please ensure that each id has unique event times"
     )
 })
@@ -220,15 +252,31 @@ test_that("semiTMLE option", {
         no_competing_events = TRUE,
         uncensored = TRUE
     )
-    
-    expect_no_error(debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "scaled_quasibinomial",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+        # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = TRUE,
+        uncensored = TRUE
+    )
+
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
-        baseline_covariates = c("age", "A_0", "L_0"),
+        baseline_covariates = c("age", "A_0", "L_0")
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = NULL
+    )
+
+    # Run debiased ICE-IPCW procedure
+    expect_no_error(result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "quasibinomial",
+        model_hazard = NULL,
         conservative = TRUE,
         verbose = FALSE,
         semi_tmle = TRUE
@@ -247,14 +295,24 @@ test_that("test continuous time function (uncensored; competing risks)", {
     )
 
     # Run debiased ICE-IPCW procedure
+        prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0")
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = NULL
+    )
+
+    # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
-        data = copy(data_continuous),
+        prepared_data = altered_data,
         time_horizon = 720,
         model_pseudo_outcome = "quasibinomial",
-        model_treatment = "learn_glm_logistic",
         model_hazard = NULL,
-        time_covariates = c("A", "L"),
-        baseline_covariates = c("age", "A_0", "L_0"),
         conservative = TRUE,
         verbose = FALSE
     )
@@ -288,14 +346,25 @@ test_that("test continuous time function (censored; conservative; competing risk
     )
 
     # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "scaled_quasibinomial",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = FALSE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE
     )
@@ -326,18 +395,27 @@ test_that("test continuous time function (censored; competing events; conservati
         uncensored = FALSE
     )
 
-    # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "scaled_quasibinomial",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
-        conservative = TRUE,
-        verbose = FALSE,
         marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
+        conservative = TRUE,
+        verbose = FALSE
     )
 
     correct_result <- data.table::data.table(
@@ -365,19 +443,28 @@ test_that("test continuous time function (censored; competing events; conservati
         uncensored = FALSE
     )
 
-    # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "scaled_quasibinomial",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
         conservative = FALSE,
-        verbose = FALSE,
-        marginal_censoring = TRUE,
-        grid_size = 15
+        grid_size = 15,
+        verbose = FALSE
     )
 
     correct_result <- data.table::data.table(
@@ -406,16 +493,27 @@ test_that("test continuous time function (censored; competing events; oicpw_expi
     )
 
     # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "oipcw_expit",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "oipcw_expit",
+        model_hazard = "learn_coxph",
         conservative = TRUE,
-        marginal_censoring = TRUE,
         verbose = FALSE
     )
 
@@ -445,16 +543,27 @@ test_that("test continuous time function (censored; competing events; oicpw_prob
     )
 
     # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "oipcw_probit",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "oipcw_probit",
+        model_hazard = "learn_coxph",
         conservative = TRUE,
-        marginal_censoring = TRUE,
         verbose = FALSE
     )
 
@@ -483,17 +592,27 @@ test_that("test continuous time function (censored; competing events; nls_expit"
         uncensored = FALSE
     )
 
-    # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "nls_expit",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "nls_expit",
+        model_hazard = "learn_coxph",
         conservative = TRUE,
-        marginal_censoring = TRUE,
         verbose = FALSE
     )
 
@@ -522,17 +641,27 @@ test_that("test continuous time function (censored; competing events; nls_probit
         uncensored = FALSE
     )
 
-    # Run debiased ICE-IPCW procedure
-    result <- debias_ice_ipcw(
-        data = copy(data_continuous),
-        time_horizon = 720,
-        model_pseudo_outcome = "nls_probit",
-        model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph",
+    
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "nls_probit",
+        model_hazard = "learn_coxph",
         conservative = TRUE,
-        marginal_censoring = TRUE,
         verbose = FALSE
     )
 

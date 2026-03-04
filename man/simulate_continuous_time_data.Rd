@@ -66,39 +66,39 @@ Simulate Longitudinal Continuous-Time Data for Time-to-Event Analysis
 \details{
 Simulates longitudinal data for time-to-event analyses in continuous time using a
 multi-state framework. Each subject's data consists of a sequence of observed events
-\eqn{O = (T(K), Δ(K), A(T(K-1)), L(T(K-1)), ..., A(0), L(0))}, where events and covariates
-evolve over time. The simulation proceeds iteratively. Only \eqn{A(T(K-1)), L(T(K-1)),T(K-1), Δ(K-1), L(0)}
+\eqn{O = (T(K), D(K), A(T(K-1)), L(T(K-1)), ..., A(0), L(0))}, where events and covariates
+evolve over time. The simulation proceeds iteratively. Only \eqn{A(T(K-1)), L(T(K-1)),T(K-1), D(K-1), L(0)}
 are used for the k-th event, treatment and covariates at the k-th event time \eqn{T(k)}.
 
 The covariate history includes baseline covariates \code{age}, \code{sex}, and two
 time-varying covariates \code{L1(t)} and \code{L2(t)} that are updated over time. These
 covariates may represent recurrent events or other cumulative processes.
 
-At each event time \eqn{T(k)}, a competing risks model determines the event type \eqn{Δ(k)}
+At each event time \eqn{T(k)}, a competing risks model determines the event type \eqn{D(k)}
 (e.g., vistation (a), covariate event (l), death (d), outcome (y), censoring (c)). Interarrival times
 \eqn{S_x(k)} are drawn from exponential distributions with cause-specific hazards:
 \deqn{S_x(k) \sim \text{Exp}(\lambda_x \exp(\beta_x^\top ftk_{k-1}))}
 where \eqn{x \in \{a, \ell, d, y, c\}} and \eqn{ftk_{k-1}} includes \code{A(T(k-1))},
-\code{L1(T(k-1))}, \code{L2(T(k-1))}, \code{T(k-1)}, \code{Δ(k-1)}, etc.
+\code{L1(T(k-1))}, \code{L2(T(k-1))}, \code{T(k-1)}, \code{D(k-1)}, etc.
 Then the minimum of these interarrival times determines the next event time \eqn{T(k)}:
-QOKWviLx15bSDMgyXU6dU3b2TfyOUiD5-2\eqn{T(k) = T(k-1) + S_{Δ(k)}(k)}
+6H7KStmgRWAfsqAHYYWP4Y4nSCkVm8xw-20\eqn{T(k) = T(k-1) + S_{D(k)}(k)}
 
 After each event, covariates are updated using logistic models:
 \deqn{L^* \sim \text{Bernoulli}(\text{expit}(\alpha_L^\top ftk_{k-1} + \alpha_L^*))}
-If \eqn{Δ(k) = \ell} and \eqn{k < K}, then
+If \eqn{D(k) = \ell} and \eqn{k < K}, then
 \itemize{
 \item \code{L1(T(k)) = L1(T(k-1)) + L^*}
 \item \code{L2(T(k)) = L2(T(k-1)) + 1-L^*}
 }
 Otherwise, the values of \code{L1} and \code{L2} are carried forward unchanged.
 
-If \eqn{Δ(k) = a}, treatment at \eqn{T(k)} is assigned as:
+If \eqn{D(k) = a}, treatment at \eqn{T(k)} is assigned as:
 \deqn{A(T(k)) \sim \text{Bernoulli}(\text{expit}(\alpha_A^\top ftk_{k-1} + \alpha_A^*))}.
 Otherwise \eqn{A(T(k)) = A(T(k-1))}.
 Static interventions can be imposed by setting \code{A(T(k)) = 1} for all \eqn{k}
 which corresponds to using the continuous-time g-formula.
 
-Censoring can be disabled by setting the censoring time \eqn{S_c(k) = ∞}.
+Censoring can be disabled by setting the censoring time \eqn{S_c(k) = \infty}.
 }
 \examples{
 simulate_continuous_time_data(10)
