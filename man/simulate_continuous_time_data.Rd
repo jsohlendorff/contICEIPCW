@@ -81,7 +81,7 @@ At each event time \eqn{T(k)}, a competing risks model determines the event type
 where \eqn{x \in \{a, \ell, d, y, c\}} and \eqn{ftk_{k-1}} includes \code{A(T(k-1))},
 \code{L1(T(k-1))}, \code{L2(T(k-1))}, \code{T(k-1)}, \code{Δ(k-1)}, etc.
 Then the minimum of these interarrival times determines the next event time \eqn{T(k)}:
-H73D5KtWnJ47wK3nsKGuco1aXVbfpJaH-2\eqn{T(k) = T(k-1) + S_{Δ(k)}(k)}
+QOKWviLx15bSDMgyXU6dU3b2TfyOUiD5-2\eqn{T(k) = T(k-1) + S_{Δ(k)}(k)}
 
 After each event, covariates are updated using logistic models:
 \deqn{L^* \sim \text{Bernoulli}(\text{expit}(\alpha_L^\top ftk_{k-1} + \alpha_L^*))}

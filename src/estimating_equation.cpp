@@ -28,7 +28,7 @@ arma::vec estimating_equation_cpp(
     double tol = 1e-8,
     bool verbose = false) {
   
-  const int p = X.n_cols;
+  const unsigned int p = X.n_cols;
   // check that beta has the right length
   if(beta.n_elem != p) {
     stop("Length of beta must match number of columns in X");
@@ -116,22 +116,27 @@ arma::vec estimating_equation_cpp(
     // Newton step
     // Fast but less stable: solve J step = F
     vec step;
+    bool solvable = false;
     if (solve_opts == "fast") {
-      step = solve(J, F, solve_opts::fast);
+      solvable = solve(step, J, F, solve_opts::fast);
     } else if (solve_opts == "refine") {
-      step = solve(J, F, solve_opts::refine);
+      solvable = solve(step, J, F, solve_opts::refine);
     } else if (solve_opts == "equilibrate") {
-      step = solve(J, F, solve_opts::equilibrate);
+      solvable = solve(step, J, F, solve_opts::equilibrate);
     } else if (solve_opts == "allow_ugly") {
-      step = solve(J, F, solve_opts::allow_ugly);
+      solvable = solve(step, J, F, solve_opts::allow_ugly);
     } else if (solve_opts == "no_approx") {
-      step = solve(J, F, solve_opts::no_approx);
+      solvable = solve(step, J, F, solve_opts::no_approx);
     } else if (solve_opts == "force_sym") {
-      step = solve(J, F, solve_opts::force_sym);
+      solvable = solve(step, J, F, solve_opts::force_sym);
     } else if (solve_opts == "force_approx") {
-      step = solve(J, F, solve_opts::force_approx);
+      solvable = solve(step, J, F, solve_opts::force_approx);
     } else {
       stop("Unknown solve_opts");
+    }
+    if (!solvable) {
+      warning("Linear system could not be solved, stopping iteration");
+      return beta;
     }
 
     if (verbose) {
