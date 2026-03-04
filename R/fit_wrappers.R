@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (14:39) 
 ## Version: 
-## Last-Updated: Feb 27 2026 (19:48) 
+## Last-Updated: Mar  4 2026 (16:22) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 31
+##     Update #: 38
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -15,7 +15,7 @@
 ## 
 ### Code:
 
-hazard_fit <- function(data, model_hazard, outcome_string, covariates = NULL, formula_strategy = "additive", use_history_of_variables = FALSE, lag = NULL, k = NULL, time_covariates = NULL, baseline_covariates = NULL) {
+hazard_fit <- function(data, model_hazard, outcome_string, covariates = NULL, formula_strategy = "additive", use_history_of_variables = FALSE, lag = NULL, k = NULL, time_covariates = NULL, baseline_covariates = NULL, time_variable = "time") {
        if (use_history_of_variables) {
            covariates <- get_history_of_variables(
                 data,
@@ -36,7 +36,7 @@ hazard_fit <- function(data, model_hazard, outcome_string, covariates = NULL, fo
        }
         withCallingHandlers(
         {
-            do.call(model_hazard, list(character_formula = formula_hazard, data = data))
+            do.call(model_hazard, list(character_formula = formula_hazard, data = data, time_variable = time_variable))
         },
         error = function(e) {
             stop("Error in fitting hazard model: ", e, "with formula: ", formula_hazard)

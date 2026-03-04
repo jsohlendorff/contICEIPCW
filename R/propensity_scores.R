@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar  3 2026 (12:28) 
+## Last-Updated: Mar  4 2026 (17:11) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 138
+##     Update #: 146
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -68,7 +68,8 @@ propensity_scores <- function(last_event,
                                               lag = lag,
                                               k = k,
                                               time_covariates = time_covariates,
-                                              baseline_covariates = baseline_covariates)
+                                              baseline_covariates = baseline_covariates,
+                                              time_variable = paste0("time_", k))
 
             } else {
                 # Ensure Cox.
