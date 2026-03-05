@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar  4 2026 (22:34) 
+## Last-Updated: Mar  5 2026 (15:13) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 185
+##     Update #: 201
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -56,7 +56,9 @@
 ## Function for getting the propensity scores (treatment) and censoring models
 propensity_scores <- function(prepared_data, 
                               model_treatment,
+                              penalize_treatment = FALSE,
                               model_hazard,
+                              penalize_hazard = FALSE,
                               lag = NULL,
                               verbose = FALSE) {
     event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
@@ -91,7 +93,8 @@ propensity_scores <- function(prepared_data,
                                model_hazard = model_hazard,
                                outcome_string = "Surv(time, event == \"C\")",
                                covariates = censoring_covariates,
-                               formula_strategy = "additive")
+                               formula_strategy = "additive",
+                               penalize = penalize_hazard)
     } else {
         marginal_censoring_fit <- NULL
     }
@@ -121,7 +124,8 @@ propensity_scores <- function(prepared_data,
                                               k = k,
                                               time_covariates = time_covariates,
                                               baseline_covariates = baseline_covariates,
-                                              time_variable = paste0("time_", k))
+                                              time_variable = paste0("time_", k),
+                                              penalize = penalize_hazard)
 
             } else {
                 # Ensure Cox.
@@ -131,7 +135,7 @@ propensity_scores <- function(prepared_data,
                     stop("Censoring model must be a Cox proportional hazards model when marginal_censoring is TRUE.")
                 }
 
-                data_use <- copy(data)[event_prev %in% c("A", "L"), env = list(
+                data_use <- data[event_prev %in% c("A", "L"), env = list(
                     event_prev = paste0("event_", k - 1)
                 )]
                 data_use[, c("time", "time_prev") := list(time_k, time_k_prev), env = list(
@@ -167,18 +171,6 @@ propensity_scores <- function(prepared_data,
 
         ## Fit propensity score (treatment) model
         if (k < last_event) {
-            history_of_variables_propensity <- get_history_of_variables(
-                data[event_k == "A", env = list(event_k = paste0("event_", k))],
-                time_covariates,
-                baseline_covariates,
-                type = "propensity",
-                lag = lag,
-                k = k
-            )
-            formula_treatment <- paste0("A_", k, " ~ ", paste0(history_of_variables_propensity, collapse = "+"))
-            if (verbose) {
-                message("Fitting treatment propensity model for event ", k, " with formula: ", deparse(formula_treatment), "\n")
-            }
             ## check whether all values of A are 1; if so put propensity to 1
             if (all(data[event_k == "A", A_k == 1, env = list(
                                                        event_k = paste0("event_", k),
@@ -189,18 +181,19 @@ propensity_scores <- function(prepared_data,
                                                             event_k = paste0("event_", k)
                                                         )]
             } else {
-                data[event_k == "A", propensity_k := withCallingHandlers(
-                {
-                    do.call(model_treatment, list(
-                                                 character_formula = formula_treatment, data = .SD
-                                             ))$pred
-                },
-                error = function(e) {
-                    stop("Error in fitting treatment propensity model: ", e, " for event ", k)
-                },
-                warning = function(w) {
-                    message("Warning in fitting treatment propensity model: ", w, " for event ", k)
-                }
+                data[event_k == "A", propensity_k := regression_fit(
+                    data = .SD,
+                    model_regression = model_treatment,
+                    outcome_string = paste0("A_", k),
+                    covariates = NULL,
+                    formula_strategy = "additive",
+                    use_history_of_variables = TRUE,
+                    lag = lag,
+                    k = k,
+                    time_covariates = time_covariates,
+                    baseline_covariates = baseline_covariates,
+                    type = "propensity",
+                    penalize = penalize_treatment
                 ), env = list(
                        propensity_k = paste0("propensity_", k),
                        event_k = paste0("event_", k)
@@ -213,31 +206,23 @@ propensity_scores <- function(prepared_data,
         data[, propensity_0 := 1]
     } else {
         ## Baseline propensity model
-        formula_treatment <- paste0("A_0 ~ ", paste(
-                                                  setdiff(baseline_covariates, "A_0"),
-                                                  collapse = "+"
-                                              ))
         ## Fit the baseline treatment propensity model
         ## check whethe any baseline covariates should be deleted
         baseline_covariates <- setdiff(
             baseline_covariates,
             names(which(vapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1))))
         )
-        if (verbose) {
-            message("Fitting baseline treatment propensity model with formula: ", deparse(formula_treatment), "\n")
-        }
-        data[, propensity_0 := withCallingHandlers(
-        {
-            do.call(model_treatment, list(
-                                         character_formula = formula_treatment, data = .SD
-                                     ))$pred
-        },
-        error = function(e) {
-            stop("Error in fitting baseline treatment propensity model: ", e)
-        },
-        warning = function(w) {
-            message("Warning in fitting baseline treatment propensity model: ", w)
-        }
+        data[, propensity_0 := regression_fit(
+            data = .SD,
+            model_regression = model_treatment,
+            outcome_string = "A_0",
+            covariates = baseline_covariates,
+            formula_strategy = "additive",
+            use_history_of_variables = FALSE,
+            time_covariates = time_covariates,
+            baseline_covariates = baseline_covariates,
+            type = "propensity",
+            penalize = penalize_treatment
         )]
     }
     out<-list(marginal_censoring_fit = marginal_censoring_fit,

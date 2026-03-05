@@ -14,7 +14,10 @@ learn_Q <- function(model_type,
                     history_of_variables,
                     data_learn,
                     formula_strategy = "additive",
-                    outcome_name = "weight") {
+                    outcome_name = "weight",
+                    outcome_string_unweighted = NULL,
+                    ipcw_name = NULL,
+                    penalize) {
     max_weight <- max(data_learn[[outcome_name]])
     if (is.null(max_weight) || is.na(max_weight)) {
         stop("The 'weight' column in data_learn must not be NULL or NA.")
@@ -68,15 +71,28 @@ learn_Q <- function(model_type,
         predict_fun <- function(data) {
             predict(fit, data = data)$predictions
         }  
-   } else if (model_type == "lm") {
-        fit <- lm(as.formula(paste0(
+    } else if (model_type == "lm") {
+        if (!penalize || length(history_of_variables) == 1){ ## do not run penalized regression with one covariate only
+            fit <- lm(as.formula(paste0(
             outcome_name,
-            " ~ ", history_of_variables_string
-        )), data = data_learn)
+            " ~ ", history_of_variables_string)), data = data_learn)
+        } else {
+            ## Use Lasso with glmnet
+            X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
+            y <- data_learn[[outcome_name]]
+            cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1)
+            fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min)
+        }
+        
         predict_fun <- function(data) {
-            pred <- predict(fit, data, type = "response")
+            if (!penalize || length(history_of_variables) == 1) {
+                pred <- predict(fit, data, type = "response")
+            } else {
+                X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)
+                pred <- as.vector(predict(fit, newx = X_new, s = "lambda.min"))
+            }
             ## Ensure predictions are non-negative
-            pred[pred < 0] <- 0
+            #pred[pred < 0] <- 0
             return(pred)
         }
    } else if (model_type %in% c("oipcw_expit", "oipcw_probit", "nls_expit", "nls_probit")) {
@@ -173,11 +189,40 @@ learn_Q <- function(model_type,
 
            link_function(X_new %*% fit)
        }
-   } else if (model_type == "ipcw_glm"){
-       stop("ipcw_glm is not implemented yet.")
-       ## See Eq. (2) of https://link.springer.com/article/10.1007/s10985-022-09564-6
-       ## Can be implemented by fitting a glm with weights;
-       ## although we do need censoring survival weights at time $tau$ for that.
+   ## See Eq. (2) of https://link.springer.com/article/10.1007/s10985-022-09564-6
+   ## Can be implemented by fitting a glm with weights;
+   ## although we do need censoring survival weights at time $tau$ for that.
+   } else if (grepl("ipcw_glm", model_type)) {
+       if (model_type == "ipcw_glm_expit") {
+           family <- quasibinomial(link = "logit")
+       } else if (model_type == "ipcw_glm_probit") {
+           family <- binomial(link = "probit")
+       } else {
+           stop("Unsupported model_type for ipcw_glm: ", model_type)
+       }
+       if (!penalize || length(history_of_variables) == 1){ ## do not run penalized regression with one covariate only
+              fit <- stats::glm(
+                as.formula(paste0(outcome_string_unweighted, "~", history_of_variables_string
+                )),
+                data = data_learn,
+                family = family,
+                weights = data_learn[[ipcw_name]]
+              )
+              predict_fun <- function(data) {
+                predict(fit, data, type = "response") 
+              }
+       } else {
+           ## Use Lasso with glmnet
+           X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
+           y <- data_learn[[outcome_string_unweighted]]
+           weights <- data_learn[[ipcw_name]]
+           cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, family = family)
+           fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min, weights = weights, family = family)
+              predict_fun <- function(data) {
+                X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)
+                as.vector(predict(fit, newx = X_new, s = "lambda.min", type = "response"))
+              }
+       }
    } else {
        ## If flexible, we should pick argmin_(f in cal(F)) sum((Y - g(f(X)))^2, where Y are the outcome weights and g is either expit or probit.
        ## This ensures that predictions will be 0/1-valued.
@@ -263,21 +308,38 @@ learn_h2o <- function(character_formula,
 # coph learner for censoring
 learn_coxph <- function(character_formula,
                         data,
-                        time_variable = "time"){
-  exp_lp <- surv <- hazard <- NULL
-  formula_cox <- as.formula(character_formula)
-  ## Fit the Cox model
-  fit <- coxph(formula_cox, data = data, x = TRUE)
-  list(pred = exp(-cumulative_hazard_cox(fit, data, data, time_variable, NULL)$Lambda_minus), fit = fit)
+                        time_variable = "time",
+                        penalize, ...){
+    exp_lp <- surv <- hazard <- NULL
+    formula_cox <- as.formula(character_formula)
+
+    if (!penalize || length(labels(stats::terms(as.formula(character_formula)))) == 1){ ## do not run penalized regression with one covariate only
+        ## Fit the Cox model
+        fit <- coxph(formula_cox, data = data, x = TRUE)
+    } else {
+        ## use glmnet
+        fit<-riskRegression::GLMnet(formula_cox, data = data, family = "cox", alpha = 1)
+    }
+    list(pred = exp(-cumulative_hazard_cox(fit, data, data, time_variable, NULL)$Lambda_minus), fit = fit)
 }
 
 learn_glm_logistic <- function(character_formula,
-                               data) {
+                               data,
+                               penalize, ...) {
   formula_object <- as.formula(character_formula)
-  ## Fit the logistic regression model
-  fit <- stats::glm(formula_object, data = data, family = binomial(link = "logit"))
-  ## Predict on original data
-  list(pred = predict(fit, type = "response"), predict_fun = fit)
+  if (!penalize || length(labels(stats::terms(formula_object))) == 1){ ## do not run penalized regression with one covariate only
+      ## Fit the logistic regression model
+      fit <- stats::glm(formula_object, data = data, family = binomial(link = "logit"))
+      ## Predict on original data
+      predict(fit, type = "response")
+  } else {
+      ## Use Lasso with glmnet
+      X <- model.matrix(formula_object, data = data)
+      y <- data[[as.character(formula_object[[2]])]]
+      cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, family = "binomial")
+      fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min, family = "binomial")
+      as.vector(predict(fit, newx = X, s = "lambda.min", type = "response"))
+  }  
 }
 
 ## Wrapper function to predict the outcome under an intervention
