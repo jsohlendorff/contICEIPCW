@@ -20,7 +20,8 @@ Imports:
     Rfast,
     lava,
     zoo,
-    nleqslv
+    nleqslv,
+    glmnet
 Depends:
     data.table
 Suggests: 

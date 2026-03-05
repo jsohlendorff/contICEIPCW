@@ -80,7 +80,9 @@
 debias_ice_ipcw <- function(prepared_data,
                             time_horizon,
                             model_pseudo_outcome = "scaled_quasibinomial",
+                            penalize_pseudo_outcome = FALSE,
                             model_hazard = "learn_coxph",
+                            penalize_hazard = FALSE,
                             conservative = FALSE,
                             static_intervention = 1,
                             return_ipw = TRUE,
@@ -112,6 +114,14 @@ debias_ice_ipcw <- function(prepared_data,
                                            time_horizon,
                                            return_ipw,
                                            last_event)
+    fast <- TRUE
+    if (model_pseudo_outcome %in% c("ipcw_glm_expit", "ipcw_glm_identity")) {
+        fast <- FALSE
+        ## FIXME
+        if (!marginal_censoring) {
+            stop("Models with IPCW with glm require marginal censoring to be assumed.")
+        }
+    }
     
     ## Main procedure for the ICE-IPCW estimator and the one-step update with the efficient influence function
     for (k in rev(seq_len(last_event))) {
@@ -131,23 +141,24 @@ debias_ice_ipcw <- function(prepared_data,
         }
 
         ## Pseudo-outcome tilde(Q)_k
-        data_at_risk[, pseudo_outcome := 1 / (survival_censoring_k) * ((event_k == "Y" & time_k <= time_horizon) + (event_k %in% c("A", "L")) * future_prediction), env = list(
-                                                                                                                                                             survival_censoring_k = paste0("survival_censoring_", k),
-                                                                                                                                                             event_k = paste0("event_", k),
-                                                                                                                                                             time_k = paste0("time_", k)
-                                                                                                                                                             )]
+        data_at_risk[, pseudo_outcome_unweighted := 1 * ((event_k == "Y" & time_k <= time_horizon) + (event_k %in% c("A", "L")) * future_prediction), env = list(event_k = paste0("event_", k), time_k = paste0("time_", k))]
+        data_at_risk[, ipcw := ipcw_k(.SD, k, marginal_censoring_fit, time_horizon, is_censored, FALSE, surv), env = list(surv = paste0("survival_censoring_", k))] 
+        data_at_risk[, pseudo_outcome := pseudo_outcome_unweighted * ipcw]
 
         ## Fit regression; q_k
         q_reg <- regression_fit(
             data_at_risk,
             model_pseudo_outcome,
             outcome_string = "pseudo_outcome",
+            outcome_string_unweighted = "pseudo_outcome_unweighted",
+            ipcw_name = "ipcw",
             use_history_of_variables = TRUE,
             lag = lag,
             k = k,
             time_covariates = time_covariates,
             baseline_covariates = baseline_covariates,
-            type = "pseudo_outcome"
+            type = "pseudo_outcome",
+            penalize = penalize_pseudo_outcome
         )
         
         ## Predict q_k under the previous intervention
@@ -172,7 +183,9 @@ debias_ice_ipcw <- function(prepared_data,
                                              time_covariates,
                                              baseline_covariates,
                                              model_hazard,
+                                             penalize_hazard,
                                              model_pseudo_outcome,
+                                             penalize_pseudo_outcome,
                                              time_horizon,
                                              marginal_censoring,
                                              lag,

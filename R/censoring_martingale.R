@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar  4 2026 (19:28) 
+## Last-Updated: Mar  5 2026 (11:14) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 399
+##     Update #: 409
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -21,7 +21,9 @@ censoring_martingale <- function(
   time_covariates,
   baseline_covariates,
   model_hazard,
+  penalty_hazard,
   model_pseudo_outcome,
+  penalize_pseudo_outcome,
   time_horizon,
   marginal_censoring,
   lag,
@@ -87,7 +89,8 @@ censoring_martingale <- function(
     k = k,
     time_covariates = time_covariates,
     baseline_covariates = baseline_covariates,
-    time_variable = time_k
+    time_variable = time_k,
+    penalize = penalty_hazard
   )
 
   if (!inherits(surv_fit$fit, "coxph"))
@@ -132,19 +135,24 @@ censoring_martingale <- function(
       dt <- dt[protocol_follow == TRUE]
       dt[, q_pred_u := q_prediction]
     } else {
-      dt[, pseudo_outcome_u :=
-            pseudo_outcome * (get(time_k) <= u)]
+      dt[, pseudo_outcome_unweighted_u :=
+               pseudo_outcome_unweighted * (get(time_k) <= u)]
+      dt[, ipcw_u := ipcw_k(.SD, k, marginal_censoring_fit, u, TRUE, FALSE, NULL)]
+      dt[, pseudo_outcome_u := pseudo_outcome_unweighted_u * ipcw_u]
 
       q_fit <- regression_fit(
         dt,
         model_pseudo_outcome,
         outcome_string = "pseudo_outcome_u",
+        outcome_string_unweighted = "pseudo_outcome_unweighted_u",
+        ipcw_name = "ipcw_u",
         use_history_of_variables = TRUE,
         lag = lag,
         k = k,
         time_covariates = time_covariates,
         baseline_covariates = baseline_covariates,
-        type = "pseudo_outcome"
+        type = "pseudo_outcome",
+        penalize = penalize_pseudo_outcome
       )
 
        dt[, q_pred_u := q_fit(.SD)]
@@ -253,7 +261,6 @@ censoring_martingale <- function(
     data_censoring[, !"time"],
     time_ref = time_k_prev
   )
-  
 
   setnames(preds,
            c("Lambda", "Lambda_minus"),
