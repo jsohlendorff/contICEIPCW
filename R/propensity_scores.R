@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar  5 2026 (15:13) 
+## Last-Updated: Mar  6 2026 (11:15) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 201
+##     Update #: 220
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -61,7 +61,7 @@ propensity_scores <- function(prepared_data,
                               penalize_hazard = FALSE,
                               lag = NULL,
                               verbose = FALSE) {
-    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
+    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }
@@ -102,6 +102,15 @@ propensity_scores <- function(prepared_data,
     ## to conservative=FALSE
     ## censoring_models <- list()
     for (k in rev(seq_len(last_event))) {
+         ## Create shortcuts for the k'th iteration
+         data[, c("event_k", "time_k", "time_k_prev", "event_k_prev", "A_k")
+         := list(event_k, time_k, time_k_prev, event_k_prev, A_k),
+         env = list(event_k = paste0("event_", k),
+                    time_k = paste0("time_", k),
+                    event_k_prev = paste0("event_", k - 1),
+                    time_k_prev = paste0("time_", k - 1),
+                    A_k = paste0("A_", k))]
+        
         ## Find those at risk of the k'th event; subset data (i.e., people who have not died before the k'th event)
         ## NOTE: For the treatment propensity score, we do not consider
         ## the interarrival times
@@ -135,13 +144,8 @@ propensity_scores <- function(prepared_data,
                     stop("Censoring model must be a Cox proportional hazards model when marginal_censoring is TRUE.")
                 }
 
-                data_use <- data[event_prev %in% c("A", "L"), env = list(
-                    event_prev = paste0("event_", k - 1)
-                )]
-                data_use[, c("time", "time_prev") := list(time_k, time_k_prev), env = list(
-                    time_k = paste0("time_", k),
-                    time_k_prev = paste0("time_", k - 1)
-                )]
+                data_use <- data[event_k_prev %in% c("A", "L")]
+                data_use[, c("time", "time_prev") := list(time_k, time_k_prev)]
 
                 data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit, data_use, data_use, time_ref = "time_prev")
                 learn_censoring <- list(
@@ -150,38 +154,23 @@ propensity_scores <- function(prepared_data,
             }
             if (k > 1) {
                 data[event_k_prev %in% c("A", "L"),
-                     survival_censoring_k := learn_censoring$pred,
-                     env = list(
-                         survival_censoring_k = paste0("survival_censoring_", k),
-                         event_k_prev = paste0("event_", k - 1)
-                     )
-                     ]
+                     paste0("survival_censoring_", k) := learn_censoring$pred]
             } else {
-                data[, survival_censoring_k := learn_censoring$pred, env = list(
-                                                                         survival_censoring_k = paste0("survival_censoring_", k)
-                                                                     )]
+                data[, paste0("survival_censoring_", k) := learn_censoring$pred]
             }
             ## Currently unused.
             ## censoring_models[[k]] <- learn_censoring$fit
         } else {
-            data[, survival_censoring_k := 1, env = list(
-                                                  survival_censoring_k = paste0("survival_censoring_", k)
-                                              )]
+            data[, paste0("survival_censoring_", k) := 1]
         }
 
         ## Fit propensity score (treatment) model
         if (k < last_event) {
             ## check whether all values of A are 1; if so put propensity to 1
-            if (all(data[event_k == "A", A_k == 1, env = list(
-                                                       event_k = paste0("event_", k),
-                                                       A_k = paste0("A_", k)
-                                                   )])) {
-                data[event_k == "A", propensity_k := 1, env = list(
-                                                            propensity_k = paste0("propensity_", k),
-                                                            event_k = paste0("event_", k)
-                                                        )]
+            if (all(data[event_k == "A", A_k == 1])) {
+                data[event_k == "A", paste0("propensity_",k) := 1]
             } else {
-                data[event_k == "A", propensity_k := regression_fit(
+                data[event_k == "A", paste0("propensity_",k) := regression_fit(
                     data = .SD,
                     model_regression = model_treatment,
                     outcome_string = paste0("A_", k),
@@ -194,10 +183,7 @@ propensity_scores <- function(prepared_data,
                     baseline_covariates = baseline_covariates,
                     type = "propensity",
                     penalize = penalize_treatment
-                ), env = list(
-                       propensity_k = paste0("propensity_", k),
-                       event_k = paste0("event_", k)
-                   )]
+                )]
             }
         }
     }
