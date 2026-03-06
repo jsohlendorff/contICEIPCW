@@ -91,9 +91,11 @@ debias_ice_ipcw <- function(prepared_data,
                             lag = NULL,
                             verbose = FALSE,
                             semi_tmle = FALSE) {
-    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
+    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
     if (!inherits(prepared_data, "debiased_prepared")) {
-        stop("prepared_data must be an object of class 'debiased_prepared'. Please run the 'prepare_data' function and then the 'propensity_scores' function to get an object of class 'debiased_prepared'.")
+        stop("prepared_data must be an object of class 'debiased_prepared'.
+              Please run the 'prepare_data' function and then the 'propensity_scores'
+              function to get an object of class 'debiased_prepared'.")
     }
     marginal_censoring_fit <- prepared_data$marginal_censoring_fit
     data <- prepared_data$data
@@ -114,9 +116,9 @@ debias_ice_ipcw <- function(prepared_data,
                                            time_horizon,
                                            return_ipw,
                                            last_event)
-    fast <- TRUE
+    fast_ipcw <- TRUE
     if (model_pseudo_outcome %in% c("ipcw_glm_expit", "ipcw_glm_identity")) {
-        fast <- FALSE
+        fast_ipcw <- FALSE
         ## FIXME
         if (!marginal_censoring) {
             stop("Models with IPCW with glm require marginal censoring to be assumed.")
@@ -125,6 +127,13 @@ debias_ice_ipcw <- function(prepared_data,
     
     ## Main procedure for the ICE-IPCW estimator and the one-step update with the efficient influence function
     for (k in rev(seq_len(last_event))) {
+        ## Shortcut names
+        data[, c("survival_censoring_k", "ipw_cum_weight") :=
+        list(survival_censoring_k, ipw_cum_weight_k_prev), env = list(
+            survival_censoring_k = paste0("survival_censoring_", k),
+            ipw_cum_weight_k_prev = paste0("ipw_cum_weight_", k - 1)
+        )]
+
         data_at_risk <- get_at_risk_data(data, k, time_horizon)
         at_risk_interevent <- data_at_risk$at_risk_interevent
         if (is.null(at_risk_interevent)) {
@@ -135,14 +144,14 @@ debias_ice_ipcw <- function(prepared_data,
         ## Iterated part; use the predictions from the previous iteration
         if (!is_last_event) {
             data_at_risk <- merge(data_at_risk, q_prediction, by = "id", all.x = TRUE)
-            data_at_risk[is.na(future_prediction), future_prediction := 0]            
+            data_at_risk[is.na(q_prediction_prev), q_prediction_prev := 0]
         } else {
-            data_at_risk[, future_prediction := 0]
+            data_at_risk[, q_prediction_prev := 0]
         }
 
         ## Pseudo-outcome tilde(Q)_k
-        data_at_risk[, pseudo_outcome_unweighted := 1 * ((event_k == "Y" & time_k <= time_horizon) + (event_k %in% c("A", "L")) * future_prediction), env = list(event_k = paste0("event_", k), time_k = paste0("time_", k))]
-        data_at_risk[, ipcw := ipcw_k(.SD, k, marginal_censoring_fit, time_horizon, is_censored, FALSE, surv), env = list(surv = paste0("survival_censoring_", k))] 
+        data_at_risk[, pseudo_outcome_unweighted := 1 * (time_k <= time_horizon) * ((event_k == "Y") + (event_k %in% c("A", "L")) * q_prediction_prev)]
+        data_at_risk[, ipcw := ipcw_k(.SD, k, marginal_censoring_fit, time_horizon, is_censored, fast_ipcw, survival_censoring_k)]
         data_at_risk[, pseudo_outcome := pseudo_outcome_unweighted * ipcw]
 
         ## Fit regression; q_k
@@ -166,14 +175,12 @@ debias_ice_ipcw <- function(prepared_data,
 
         ## Save values for next iteration
         q_prediction <- data_at_risk[, c("q_prediction", "id"), with = FALSE]
-        setnames(q_prediction, "q_prediction", "future_prediction")
+        setnames(q_prediction, "q_prediction", "q_prediction_prev")
 
         ## Throw error if any predictions are NA
         if (any(is.na(data_at_risk$q_prediction))) {
             stop("Predictions contain NA values.")
         }
-        data_at_risk[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights_k_prev, env = list(inverse_cumulative_probability_weights_k_prev = paste0("inverse_cumulative_probability_weights_", k - 1))]
-        data[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights_k_prev, env = list(inverse_cumulative_probability_weights_k_prev = paste0("inverse_cumulative_probability_weights_", k - 1))]
 
         if (!conservative & is_censored) {
             if (semi_tmle) stop("semi-tmle not implemented yet for censored martingale")
@@ -196,27 +203,27 @@ debias_ice_ipcw <- function(prepared_data,
                                              static_intervention)
         } else {
             ## If conservative, we do not compute the martingale terms
-            ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("inverse_cumulative_probability_weights", "id")], by = "id")
+            ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("ipw_cum_weight", "id")], by = "id")
             if (semi_tmle) {
                 max_pseudo_outcome <- max(ic_final$pseudo_outcome)
                 ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
                 ic_final$f_pseudo_outcome <- ic_final$pseudo_outcome / max_pseudo_outcome
                 ic_final$f_q_prediction <- ic_final$q_prediction / max_pseudo_outcome
-                epsilonhat <- stats::glm(f_pseudo_outcome~inverse_cumulative_probability_weights-1+offset(qlogis(f_q_prediction)),family="quasibinomial",data = ic_final)$coefficients[1]
+                epsilonhat <- stats::glm(f_pseudo_outcome~ipw_cum_weight-1+offset(qlogis(f_q_prediction)),family="quasibinomial",data = ic_final)$coefficients[1]
                 ic_final[, c("f_pseudo_outcome", "f_q_prediction") := NULL]
-                future_prediction <- stats::plogis(stats::qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$inverse_cumulative_probability_weights))
-                ic_final$q_prediction <- future_prediction
-                q_prediction$future_prediction <- future_prediction
+                q_prediction_prev <- stats::plogis(stats::qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$ipw_cum_weight))
+                ic_final$q_prediction <- q_prediction_prev
+                q_prediction$q_prediction_prev <- q_prediction_prev
             }
-            ic_final <- ic_final[, inverse_cumulative_probability_weights := inverse_cumulative_probability_weights * (pseudo_outcome - q_prediction)] # pseudo_outcome: Z. pred: Q
+            ic_final <- ic_final[, ipw_cum_weight := ipw_cum_weight * (pseudo_outcome - q_prediction)] # pseudo_outcome: Z. pred: Q
         }
-        ic_final <- ic_final[, c("inverse_cumulative_probability_weights", "id")]
+        ic_final <- ic_final[, c("ipw_cum_weight", "id")]
         ## Now add the influence curve to the data data
-        data[, inverse_cumulative_probability_weights := NULL]
+        data[, ipw_cum_weight := NULL]
         data <- merge(ic_final, data, by = "id", all = TRUE)
-        data[is.na(inverse_cumulative_probability_weights), inverse_cumulative_probability_weights := 0]
+        data[is.na(ipw_cum_weight), ipw_cum_weight := 0]
 
-        data[, ic := ic + inverse_cumulative_probability_weights]
+        data[, ic := ic + ipw_cum_weight]
         is_last_event <- FALSE
     }
     if (return_ipw) {
@@ -230,15 +237,15 @@ debias_ice_ipcw <- function(prepared_data,
     data[, g_formula_estimate := mean(pred_0)]
     data[, ic := ic + pred_0 - g_formula_estimate]
     if (!semi_tmle) {
-    data[, estimate := g_formula_estimate + mean(ic)]
-    result <- data[, .(
-        estimate = estimate[.N],
-        se = sd(ic) / sqrt(.N),
-        lower = estimate[.N] - 1.96 * sd(ic) / sqrt(.N),
-        upper = estimate[.N] + 1.96 * sd(ic) / sqrt(.N),
-        ice_ipcw_estimate = g_formula_estimate[.N],
-        ipw = ipw[.N]
-    )]
+        data[, estimate := g_formula_estimate + mean(ic)]
+        result <- data[, .(
+            estimate = estimate[.N],
+            se = sd(ic) / sqrt(.N),
+            lower = estimate[.N] - 1.96 * sd(ic) / sqrt(.N),
+            upper = estimate[.N] + 1.96 * sd(ic) / sqrt(.N),
+            ice_ipcw_estimate = g_formula_estimate[.N],
+            ipw = ipw[.N]
+        )]
     } else {
         result <- data[, .(
             estimate = g_formula_estimate[.N],

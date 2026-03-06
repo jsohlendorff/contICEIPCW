@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar  5 2026 (11:14) 
+## Last-Updated: Mar  6 2026 (11:28) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 409
+##     Update #: 424
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -55,7 +55,7 @@ censoring_martingale <- function(
   ## ------------------------------------------------------------------
 
   cens_exists <- data_at_risk[
-    get(event_k) == "C" & get(time_k) <= time_horizon,
+    event_k == "C" & time_k <= time_horizon,
     .N
   ] > 0
 
@@ -115,8 +115,7 @@ censoring_martingale <- function(
   }  
 
   ## protocol follow indicator
-  data_at_risk[, protocol_follow :=
-    data[id, inverse_cumulative_probability_weights] > 0]
+  data_at_risk[, protocol_follow := data[id, "ipw_cum_weight"] > 0]
 
   ids_follow <- data_at_risk[protocol_follow == TRUE, id]
 
@@ -126,7 +125,7 @@ censoring_martingale <- function(
 
   preds <- lapply(time_grid, function(u) {
     dt <- data_at_risk[
-      get(time_k_prev) < u
+      time_k_prev < u
     ]
 
     if (u == min(time_grid)) {
@@ -136,7 +135,7 @@ censoring_martingale <- function(
       dt[, q_pred_u := q_prediction]
     } else {
       dt[, pseudo_outcome_unweighted_u :=
-               pseudo_outcome_unweighted * (get(time_k) <= u)]
+               pseudo_outcome_unweighted * (time_k <= u)]
       dt[, ipcw_u := ipcw_k(.SD, k, marginal_censoring_fit, u, TRUE, FALSE, NULL)]
       dt[, pseudo_outcome_u := pseudo_outcome_unweighted_u * ipcw_u]
 
@@ -168,7 +167,7 @@ censoring_martingale <- function(
 
   preds <- rbindlist(preds)
   ## NOTE: Need preds_start for linear approximation of q_diff, start point 
-  preds_start <- data.table::data.table(id = ids_follow, time = data_at_risk[id %in% ids_follow, get(time_k_prev)], q_diff = data_at_risk[id %in% ids_follow, q_prediction])
+  preds_start <- data.table::data.table(id = ids_follow, time = data_at_risk[id %in% ids_follow, time_k_prev], q_diff = data_at_risk[id %in% ids_follow, q_prediction])
   preds <- rbind(preds, preds_start)
   preds[, type := "pred"]
   setkey(preds, id, time)
@@ -178,9 +177,9 @@ censoring_martingale <- function(
   ## ------------------------------------------------------------------
   cens_times <- data_at_risk[
     protocol_follow == TRUE &
-      get(event_k) == "C" &
-      get(time_k) <= time_horizon,
-    .(id, time = get(time_k))
+      event_k == "C" &
+      time_k <= time_horizon,
+    .(id, time = time_k)
   ][, `:=`(q_diff = NA_real_, type = "counting_process")]
 
   ## ------------------------------------------------------------------
@@ -196,8 +195,8 @@ censoring_martingale <- function(
   cj_dat <- merge(
     cj_dat,
     data_at_risk[, .(id,
-                     time_k = get(time_k),
-                     time_k_prev = get(time_k_prev))],
+                     time_k = time_k,
+                     time_k_prev = time_k_prev)],
     by = "id"
   )
 
@@ -225,7 +224,7 @@ censoring_martingale <- function(
 
   preds_surv <- merge(
     preds,
-    data_at_risk[, .(id,time_k_prev = get(time_k_prev))],
+    data_at_risk[, .(id,time_k_prev = time_k_prev)],
     by = "id"
   )
 
@@ -309,16 +308,11 @@ censoring_martingale <- function(
   ic_final <- merge(
     out[, .(id, pseudo_outcome,
             q_prediction, cens_mg)],
-    data[, .(id,
-             inverse_cumulative_probability_weights)],
+    data[, .(id, ipw_cum_weight)],
     by = "id"
   )
 
-  ic_final[
-    , inverse_cumulative_probability_weights :=
-        inverse_cumulative_probability_weights *
-        (pseudo_outcome - q_prediction + cens_mg)
-  ]
+  ic_final[, ipw_cum_weight := ipw_cum_weight * (pseudo_outcome - q_prediction + cens_mg)]
 }
 
 ######################################################################

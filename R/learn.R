@@ -347,7 +347,7 @@ predict_intervention <- function(data, k, predict_fun, static_intervention) {
   event_k <- A_0 <- NULL
   intervened_data <- copy(data)
   if (k > 0) {
-    intervened_data[event_k == "A", paste0("A_", k) := static_intervention, env = list(event_k = paste0("event_", k))]
+    intervened_data[event_k_intervention == "A", paste0("A_", k) := static_intervention, env = list(event_k_intervention = paste0("event_", k))]
   } else {
     intervened_data[, A_0 := static_intervention]
   }
