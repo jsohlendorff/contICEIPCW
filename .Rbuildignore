@@ -1,2 +1,4 @@
 ^LICENSE\.md$
 sandbox/
+^\.github$
+^README\.Rmd$
