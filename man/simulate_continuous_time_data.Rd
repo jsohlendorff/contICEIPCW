@@ -64,41 +64,78 @@ If note \code{NULL}, the data is also uncensored.}
 Simulate Longitudinal Continuous-Time Data for Time-to-Event Analysis
 }
 \details{
-Simulates longitudinal data for time-to-event analyses in continuous time using a
-multi-state framework. Each subject's data consists of a sequence of observed events
-\eqn{O = (T(K), D(K), A(T(K-1)), L(T(K-1)), ..., A(0), L(0))}, where events and covariates
-evolve over time. The simulation proceeds iteratively. Only \eqn{A(T(K-1)), L(T(K-1)),T(K-1), D(K-1), L(0)}
-are used for the k-th event, treatment and covariates at the k-th event time \eqn{T(k)}.
+Simulates longitudinal data for time-to-event analyses in continuous time
+using a multi-state framework. Each subject's data consists of a sequence
+of observed events
 
-The covariate history includes baseline covariates \code{age}, \code{sex}, and two
-time-varying covariates \code{L1(t)} and \code{L2(t)} that are updated over time. These
-covariates may represent recurrent events or other cumulative processes.
+\deqn{O = (T_{K}, D_{K}, A_{K-1}, L_{K-1}, \ldots, A_{0}, L_{0}),}
 
-At each event time \eqn{T(k)}, a competing risks model determines the event type \eqn{D(k)}
-(e.g., vistation (a), covariate event (l), death (d), outcome (y), censoring (c)). Interarrival times
-\eqn{S_x(k)} are drawn from exponential distributions with cause-specific hazards:
-\deqn{S_x(k) \sim \text{Exp}(\lambda_x \exp(\beta_x^\top ftk_{k-1}))}
-where \eqn{x \in \{a, \ell, d, y, c\}} and \eqn{ftk_{k-1}} includes \code{A(T(k-1))},
-\code{L1(T(k-1))}, \code{L2(T(k-1))}, \code{T(k-1)}, \code{D(k-1)}, etc.
-Then the minimum of these interarrival times determines the next event time \eqn{T(k)}:
-6H7KStmgRWAfsqAHYYWP4Y4nSCkVm8xw-20\eqn{T(k) = T(k-1) + S_{D(k)}(k)}
+where events and covariates evolve over time. The simulation proceeds
+iteratively.
+
+Only
+\eqn{A_{K-1}, L_{K-1}, T_{K-1}, D_{K-1}, L_{0}}
+are used for generating the \eqn{k}-th event, treatment, and covariates
+at event time \eqn{T_{k}}.
+
+The covariate history includes baseline covariates \code{age} and
+\code{sex}, and two time-varying covariates \code{L1k} and
+\code{L2k} that are updated over time. These covariates may represent
+recurrent events or other cumulative processes.
+
+At each event time \eqn{T_k}, a competing risks model determines the
+event type \eqn{D_{k}} (e.g., visitation \eqn{(a)}, covariate event
+\eqn{(\ell)}, death \eqn{(d)}, outcome \eqn{(y)}, censoring \eqn{(c)}).
+Interarrival times \eqn{S_x(k)} are drawn from exponential distributions
+with cause-specific hazards
+
+\deqn{
+S_x(k) \sim \mathrm{Exp}\left(\lambda_x \exp(\beta_x^\top (A_{k-1}, H_{k-1}) \right),
+}
+
+where \eqn{x \in \{a, \ell, d, y, c\}} and
+
+\deqn{
+H_{k-1} = (L_{k-1}, T_{k-1}, \ldots, L_0, A_0).
+}
+
+The minimum interarrival time determines the next event time:
+
+\deqn{
+D_(k) = \arg\min_x S_x(k)
+}
+
+\deqn{
+T_(k) = T_{k-1} + S_{D_{k}}(k)
+}
 
 After each event, covariates are updated using logistic models:
-\deqn{L^* \sim \text{Bernoulli}(\text{expit}(\alpha_L^\top ftk_{k-1} + \alpha_L^*))}
-If \eqn{D(k) = \ell} and \eqn{k < K}, then
-\itemize{
-\item \code{L1(T(k)) = L1(T(k-1)) + L^*}
-\item \code{L2(T(k)) = L2(T(k-1)) + 1-L^*}
+
+\deqn{
+L^* \sim \mathrm{Bernoulli}\left(\mathrm{expit}(\alpha_L^\top f_{T_(k-1)} + \alpha_L^*)\right)
 }
-Otherwise, the values of \code{L1} and \code{L2} are carried forward unchanged.
 
-If \eqn{D(k) = a}, treatment at \eqn{T(k)} is assigned as:
-\deqn{A(T(k)) \sim \text{Bernoulli}(\text{expit}(\alpha_A^\top ftk_{k-1} + \alpha_A^*))}.
-Otherwise \eqn{A(T(k)) = A(T(k-1))}.
-Static interventions can be imposed by setting \code{A(T(k)) = 1} for all \eqn{k}
-which corresponds to using the continuous-time g-formula.
+If \eqn{D_{k} = \ell} and \eqn{k < K}, then
+\itemize{
+\item \code{L1_(k) = L1_(k-1) + L^*}
+\item \code{L2_(k) = L2_(k-1) + 1 - L^*}
+}
 
-Censoring can be disabled by setting the censoring time \eqn{S_c(k) = \infty}.
+Otherwise, the values of \code{L1} and \code{L2} are carried forward
+unchanged.
+
+If \eqn{D_{k} = a}, treatment at time \eqn{T_{k}} is assigned as
+
+\deqn{
+A_k \sim \mathrm{Bernoulli}\left(\mathrm{expit}(\alpha_A^\top (T_k, A_{k-1} ,H_{k-1}) + \alpha_A^*)\right).
+}
+
+Otherwise \eqn{A_k = A_{k-1}}. Static interventions can be imposed
+by setting \eqn{A_k = 1} for all \eqn{k}, which corresponds to using
+the continuous-time g-formula.
+
+Censoring can be disabled by setting the censoring time
+\eqn{S_c(k) = \infty}.
 }
 \examples{
 simulate_continuous_time_data(10)
