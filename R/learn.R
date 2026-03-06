@@ -38,31 +38,60 @@ learn_Q <- function(model_type,
     } else {
         stop("Currently only 'additive' formula strategy is supported.")
     }
-    
-    if (model_type == "quasibinomial") {
-        fit <- stats::glm(
-            as.formula(paste0(
-                outcome_name,
-                " ~ ", history_of_variables_string
-            )),
-            data = data_learn,
-            family = quasibinomial(link = "logit")
-        )
-        predict_fun <- function(data) {
-            predict(fit, data, type = "response")
+
+    if (model_type %in% c("quasibinomial", "scaled_quasibinomial", "lm", "ipcw_glm_expit", "ipcw_glm_probit")) {
+        if (grepl("quasibinomial", model_type)) {
+            if (model_type == "quasibinomial") {
+                scale <- 1
+            } else if (model_type == "scaled_quasibinomial") {
+                scale <- max_weight
+                penalize <- FALSE
+            }
+            data_learn$out <- data_learn[[outcome_name]] / scale
+            weights <- rep(1, nrow(data_learn))
+            family <- quasibinomial()
+        } else if (model_type %in% c("ipcw_glm_expit", "ipcw_glm_probit")) {
+            ## See Eq. (2) of https://link.springer.com/article/10.1007/s10985-022-09564-6
+            ## Can be implemented by fitting a glm with weights;
+            ## although we do need censoring survival weights at time $tau$ for that.
+
+            scale <- 1
+            data_learn$out <- data_learn[[outcome_string_unweighted]]
+            weights <- data_learn[[ipcw_name]]
+            if (model_type == "ipcw_glm_expit") {
+                family <- quasibinomial(link = "logit")
+            } else if (model_type == "ipcw_glm_probit") {
+                family <- binomial(link = "probit")
+            }
+        } else {
+            scale <- 1
+            data_learn$out <- data_learn[[outcome_name]]
+            weights <- rep(1, nrow(data_learn))
+            family <- gaussian()
         }
-    } else if (model_type == "scaled_quasibinomial") {
-        data_learn$tt_weight <- data_learn[[outcome_name]] / max_weight
-        fit <- stats::glm(
-            as.formula(paste0(
-                "tt_weight ~ ", history_of_variables_string
-            )),
-            data = data_learn,
-            family = quasibinomial
-        )
-        predict_fun <- function(data) {
-            predict(fit, data, type = "response") * max_weight
-        }
+
+        if (!penalize || length(history_of_variables) == 1){ ## do not run penalized regression with one covariate only
+              fit <- stats::glm(
+                as.formula(paste0("out ~", history_of_variables_string
+                )),
+                data = data_learn,
+                family = family,
+                weights = weights
+              )
+              predict_fun <- function(data) {
+                predict(fit, data, type = "response") * scale
+              }
+       } else {
+           ## Use Lasso with glmnet
+           X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
+           y <- data_learn[["out"]]
+           cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, family = family)
+           fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min, weights = weights, family = family)
+              predict_fun <- function(data) {
+                X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)
+                as.vector(predict(fit, newx = X_new, s = "lambda.min", type = "response"))
+              }
+       }
     } else if (model_type == "ranger") {
         fit <- ranger::ranger(as.formula(paste0(
                            outcome_name,
@@ -71,31 +100,7 @@ learn_Q <- function(model_type,
         predict_fun <- function(data) {
             predict(fit, data = data)$predictions
         }  
-    } else if (model_type == "lm") {
-        if (!penalize || length(history_of_variables) == 1){ ## do not run penalized regression with one covariate only
-            fit <- lm(as.formula(paste0(
-            outcome_name,
-            " ~ ", history_of_variables_string)), data = data_learn)
-        } else {
-            ## Use Lasso with glmnet
-            X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
-            y <- data_learn[[outcome_name]]
-            cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1)
-            fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min)
-        }
-        
-        predict_fun <- function(data) {
-            if (!penalize || length(history_of_variables) == 1) {
-                pred <- predict(fit, data, type = "response")
-            } else {
-                X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)
-                pred <- as.vector(predict(fit, newx = X_new, s = "lambda.min"))
-            }
-            ## Ensure predictions are non-negative
-            #pred[pred < 0] <- 0
-            return(pred)
-        }
-   } else if (model_type %in% c("oipcw_expit", "oipcw_probit", "nls_expit", "nls_probit")) {
+    } else if (model_type %in% c("oipcw_expit", "oipcw_probit", "nls_expit", "nls_probit")) {
        Y <- data_learn[[outcome_name]]
        X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
 
@@ -188,40 +193,6 @@ learn_Q <- function(model_type,
            )), data = data)[, !is.na(qr_coef), drop = FALSE]
 
            link_function(X_new %*% fit)
-       }
-   ## See Eq. (2) of https://link.springer.com/article/10.1007/s10985-022-09564-6
-   ## Can be implemented by fitting a glm with weights;
-   ## although we do need censoring survival weights at time $tau$ for that.
-   } else if (grepl("ipcw_glm", model_type)) {
-       if (model_type == "ipcw_glm_expit") {
-           family <- quasibinomial(link = "logit")
-       } else if (model_type == "ipcw_glm_probit") {
-           family <- binomial(link = "probit")
-       } else {
-           stop("Unsupported model_type for ipcw_glm: ", model_type)
-       }
-       if (!penalize || length(history_of_variables) == 1){ ## do not run penalized regression with one covariate only
-              fit <- stats::glm(
-                as.formula(paste0(outcome_string_unweighted, "~", history_of_variables_string
-                )),
-                data = data_learn,
-                family = family,
-                weights = data_learn[[ipcw_name]]
-              )
-              predict_fun <- function(data) {
-                predict(fit, data, type = "response") 
-              }
-       } else {
-           ## Use Lasso with glmnet
-           X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
-           y <- data_learn[[outcome_string_unweighted]]
-           weights <- data_learn[[ipcw_name]]
-           cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, family = family)
-           fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min, weights = weights, family = family)
-              predict_fun <- function(data) {
-                X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)
-                as.vector(predict(fit, newx = X_new, s = "lambda.min", type = "response"))
-              }
        }
    } else {
        ## If flexible, we should pick argmin_(f in cal(F)) sum((Y - g(f(X)))^2, where Y are the outcome weights and g is either expit or probit.

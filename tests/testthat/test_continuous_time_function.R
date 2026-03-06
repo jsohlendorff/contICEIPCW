@@ -765,11 +765,11 @@ test_that("test continuous time function (censored; competing events; lm, penali
     )
 
     correct_result <- data.table::data.table(
-  estimate = 0.2848761912106984,
-  se = 0.016847399807041946,
-  lower = 0.2518552875888962,
-  upper = 0.3178970948325006,
-  ice_ipcw_estimate = 0.2858593476990651,
+  estimate = 0.28487619124871394,
+  se = 0.01684739758956828,
+  lower = 0.25185529197316014,
+  upper = 0.31789709052426773,
+  ice_ipcw_estimate = 0.28585935059573064,
   ipw = 0.28495738884128674
 )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
