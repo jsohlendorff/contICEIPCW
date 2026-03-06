@@ -35,8 +35,12 @@ Default is \code{"tweedie"}.
 \code{"ranger"} uses a random forest model from the \code{ranger} package.
 \code{"log_normal_mixture"} uses a log-normal mixture model, which is useful for continuous outcomes with e.g., allows us to model continuous outcomes with a point mass at 0.}
 
+\item{penalize_pseudo_outcome}{Logical; if \code{TRUE}, applies L1-penalization to the regression for the pseudo-outcome. Default is \code{FALSE}.}
+
 \item{model_hazard}{A string specifying the type of model to use for the cumulative hazard function.
 Options include \code{"learn_coxph"} (Cox proportional hazards model).}
+
+\item{penalize_hazard}{Logical; if \code{TRUE}, applies L1-penalization to the regression for the hazard. Default is \code{FALSE}.}
 
 \item{conservative}{Logical; if \code{TRUE}, do not debias the censoring martingale in the efficient influence function.
 Results in massive speed up, but slightly less accurate inference.}

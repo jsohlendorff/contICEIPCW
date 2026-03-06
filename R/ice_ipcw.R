@@ -23,6 +23,8 @@
 #' @param verbose Logical; if \code{TRUE}, prints additional information during the execution.
 #' @param static_intervention Which intervention to consider; either 0 or 1.
 #' @param semi_tmle Whether to update the discrete part of the efficient influence function via a TMLE-step instead of one-step.
+#' @param penalize_pseudo_outcome Logical; if \code{TRUE}, applies L1-penalization to the regression for the pseudo-outcome. Default is \code{FALSE}.
+#' @param penalize_hazard Logical; if \code{TRUE}, applies L1-penalization to the regression for the hazard. Default is \code{FALSE}.
 #'
 #' @return A named vector containing the following elements:
 #' `estimate` - the estimated mean interventional absolute risk at time \code{time_horizon} (debiased)

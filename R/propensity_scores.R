@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar  6 2026 (11:15) 
+## Last-Updated: Mar  6 2026 (13:34) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 220
+##     Update #: 221
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -23,6 +23,8 @@
 #' Options include \code{"learn_coxph"} (Cox proportional hazards model).
 #' @param lag Optional numeric indicating the number of previous events included in the formulas for the models.
 #' @param verbose Logical; if \code{TRUE}, prints additional information during model fitting.
+#' @param penalize_treatment Logical; if \code{TRUE}, applies L1 regularization to the treatment propensity score model.
+#' @param penalize_hazard Logical; if \code{TRUE}, applies L1 regularization to the hazard model.
 #'
 #' @export
 #' @examples
