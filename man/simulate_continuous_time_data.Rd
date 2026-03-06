@@ -27,6 +27,9 @@ simulate_continuous_time_data(
   uncensored = FALSE,
   K = 3,
   limit_event_A = 1,
+  aggregate_parameters = FALSE,
+  static_intervention_stop = NULL,
+  time_varying_covariate_cumulative_effect = TRUE,
   limit_event_L = 1
 )
 }
