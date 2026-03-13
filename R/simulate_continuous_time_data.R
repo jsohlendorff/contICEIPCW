@@ -1,9 +1,3 @@
-## Simulate from an exponential proportional hazards model
-rexponential_proportional_hazard <- function(n, rate, eta) {
-    u <- stats::runif(n)
-    (-log(u) / (rate * exp(eta)))
-}
-
 #' Simulate Longitudinal Continuous-Time Data for Time-to-Event Analysis
 #'
 #' Simulates longitudinal data for time-to-event analyses in continuous time
@@ -194,6 +188,7 @@ simulate_continuous_time_data <- function(n,
                                           static_intervention_stop = NULL,
                                           time_varying_covariate_cumulative_effect = TRUE,
                                           limit_event_L = 1) {
+    requireNamespace("Rfast", quietly = TRUE)
     L_0 <- A_0 <- age <- id <- time <- event <- L <- A <- n_A_events <- n_L_events <- new_A <- entrytime <- NULL
     if (!is.null(static_intervention)) {
         static_intervention_baseline <- static_intervention
@@ -226,8 +221,7 @@ simulate_continuous_time_data <- function(n,
 
     # baseline treatment depends on baseline variables
     if (is.null(static_intervention_baseline)) {
-        pop[, A_0 := stats::rbinom(n, 1, lava::expit(effects$alpha_A_0$intercept +
-                                                     effects$alpha_A_0$age * age))]
+        pop[, A_0 := stats::rbinom(n, 1, expit(effects$alpha_A_0$intercept + effects$alpha_A_0$age * age))]
     } else if (static_intervention_baseline %in% c(0, 1)) {
         pop[, A_0 := static_intervention_baseline]
     } else {
@@ -348,10 +342,10 @@ simulate_continuous_time_data <- function(n,
         } else {
             people_atrisk[event == "A", new_A := stats::rbinom(
                                                             .N, 1,
-                                                            lava::expit(effects[[paste0("alpha_A_", j)]]$intercept +
-                                                                        effects[[paste0("alpha_A_", j)]]$L * L +
-                                                                        effects[[paste0("alpha_A_", j)]]$time * time +
-                                                                        effects[[paste0("alpha_A_", j)]]$age * age)
+                                                            expit(effects[[paste0("alpha_A_", j)]]$intercept +
+                                                                  effects[[paste0("alpha_A_", j)]]$L * L +
+                                                                  effects[[paste0("alpha_A_", j)]]$time * time +
+                                                                  effects[[paste0("alpha_A_", j)]]$age * age)
                                                         )]
         }
         people_atrisk[event == "A", n_A_events := n_A_events + 1]

@@ -265,11 +265,13 @@ debias_ice_ipcw <- function(prepared_data,
             ipw = ipw[.N]
         )]
     } else {
+        message("Rerun with semi_tmle = FALSE to get 'ice_ipcw_estimate'")
         result <- data[, .(
             estimate = g_formula_estimate[.N],
             se = sd(ic) / sqrt(.N),
             lower = g_formula_estimate[.N] - 1.96 * sd(ic) / sqrt(.N),
             upper = g_formula_estimate[.N] + 1.96 * sd(ic) / sqrt(.N),
+            ice_ipcw_estimate = NA,
             ipw = ipw[.N])]
     }
     if (return_ic) {

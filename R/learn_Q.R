@@ -1,7 +1,19 @@
-expit <- function(x) 1 / (1 + exp(-x))
-logit <- function(p) log(p / (1 - p))
-probit <- function(x) stats::pnorm(x)
-inv_probit <- function(p) stats::qnorm(p)
+### learn_Q.R --- 
+#----------------------------------------------------------------------
+## Author: Johan Sebastian Ohlendorff
+## Created: Mar 13 2026 (18:49) 
+## Version: 
+## Last-Updated: Mar 13 2026 (19:09) 
+##           By: Johan Sebastian Ohlendorff
+##     Update #: 5
+#----------------------------------------------------------------------
+## 
+### Commentary: 
+## 
+### Change Log:
+#----------------------------------------------------------------------
+## 
+### Code:
 
 # Model to use for the outcome regression which returns a prediction function
 # for the chosen model.
@@ -92,14 +104,6 @@ learn_Q <- function(model_type,
                 as.vector(predict(fit, newx = X_new, s = "lambda.min", type = "response"))
               }
        }
-    } else if (model_type == "ranger") {
-        fit <- ranger::ranger(as.formula(paste0(
-                           outcome_name,
-                           " ~ ", history_of_variables_string
-                       )), data = data_learn)
-        predict_fun <- function(data) {
-            predict(fit, data = data)$predictions
-        }  
     } else if (model_type %in% c("oipcw_expit", "oipcw_probit", "nls_expit", "nls_probit")) {
        Y <- data_learn[[outcome_name]]
        X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
@@ -110,11 +114,11 @@ learn_Q <- function(model_type,
        X <- X[, !is.na(qr_coef), drop = FALSE]
 
        ## Start with initial parameters corresponding to intercept only model
-       intercept <- ifelse(grepl("expit", model_type), logit(mean(Y)), inv_probit(mean(Y)))
+       intercept <- ifelse(grepl("expit", model_type), logit(mean(Y)), stats::qnorm(mean(Y)))
        beta_init <- c(intercept, rep(0, ncol(X) - 1))
 
        ## Determine if expit or probit from model_type
-       link_function <- ifelse(grepl("expit", model_type), expit, probit)
+       link_function <- ifelse(grepl("expit", model_type), expit, stats::pnorm)
 
        if (model_type == "oipcw_expit") {
            g <- function(beta, X, Y) {
@@ -124,7 +128,7 @@ learn_Q <- function(model_type,
        } else if (model_type == "oipcw_probit") {
            g <- function(beta, X, Y) {
                eta <- X %*% beta
-               as.vector(t(X) %*% ((Y - probit(eta)) * dnorm(eta) / (probit(eta) * (1 - probit(eta)))))
+               as.vector(t(X) %*% ((Y - stats::pnorm(eta)) * dnorm(eta) / (stats::pnorm(eta) * (1 - stats::pnorm(eta)))))
            }
        } else if (model_type == "nls_expit") {
            g <- function(beta, X, Y) {
@@ -135,7 +139,7 @@ learn_Q <- function(model_type,
        } else if (model_type == "nls_probit") {
            g <- function(beta, X, Y) {
                eta <- X %*% beta
-               mu <- probit(eta)
+               mu <- stats::pnorm(eta)
                as.vector(t(X) %*% ((Y - mu) * dnorm(eta)))
            }
        }
@@ -156,6 +160,7 @@ learn_Q <- function(model_type,
                offset = rep(0, nrow(X))
            )))
        } else {
+           requireNamespace("nleqslv", quietly = TRUE)
            fit <- nleqslv::nleqslv(f = g, x = beta_init, X = X, Y = Y, control = list(maxit = 1000, allowSingular = TRUE))$x
        }},
        error = function(e) {
@@ -210,140 +215,5 @@ learn_Q <- function(model_type,
     predict_fun
 }
 
-## Example function
-## Export
-##' Learn a model using H2O AutoML and return a prediction function
-##' @param character_formula A character string representing the formula for the model, e.g., "outcome ~ var1 + var2".
-##' @param data A data.table containing the data to learn the model from.
-##' @param intervened_data A data.table containing the data to predict on under the intervention. If NULL, predictions will be made on the original data.
-##' @param max_runtime_secs Maximum runtime for H2O AutoML in seconds.
-##' @param nfolds Number of folds for cross-validation in H2O AutoML.
-##' @param verbose Whether to print H2O AutoML output.
-##' @param ... Additional arguments to pass to H2O AutoML.
-##' @export 
-learn_h2o <- function(character_formula,
-                      data,
-                      intervened_data = NULL,
-                      max_runtime_secs = 30,
-                      nfolds = 10,
-                      verbose = FALSE,
-                      ...) {
-  formula_object <- as.formula(character_formula)
-  outcome_name <- as.character(formula_object[[2]])
-  history_of_variables <- labels(stats::terms(formula_object))
-  data <- data[, c(outcome_name, history_of_variables), with = FALSE]
-  ## Check if only 0/1 values in outcome_name
-  if (all(data[[outcome_name]] %in% c(0, 1))) {
-    distribution <- "bernoulli"
-    data[[outcome_name]] <- as.factor(data[[outcome_name]]) # Convert to factor for classification
-  } else {
-    distribution <- "AUTO"
-  }
-
-  if (!verbose) sink("/dev/null") # Suppress H2O output
-  suppressWarnings({
-    h2o::h2o.init()
-  })
-  data_h2o <- h2o::as.h2o(data)
-
-  ## AutoML
-  aml <- h2o::h2o.automl(
-    y = outcome_name,
-    training_frame = data_h2o,
-    max_runtime_secs = max_runtime_secs,
-    nfolds = nfolds,
-    distribution = distribution,
-    sort_metric = "MSE",
-    ...
-  )
-  if (!verbose) sink()
-
-  best_model <- aml@leader
-  leaderboard <- as.data.table(aml@leaderboard)
-
-  ## Print leader and glm
-  leader <- aml@leaderboard[1, ]
-  lm_models <- leaderboard[grepl("LM", leaderboard$model_id), ]
-  leaderboard <- rbind(leader, lm_models)
-  print(leaderboard)
-
-  if (distribution == "bernoulli") {
-    ## For binary, we need to convert the predictions to a vector
-    predict_fun <- function(data) {
-      newdata_h2o <- h2o::as.h2o(data)
-      as.vector(h2o::h2o.predict(best_model, newdata = newdata_h2o)$p1) # p1 for class 1 probability
-    }
-  } else {
-    ## For regression, we can directly use the predict method
-    predict_fun <- function(data) {
-      newdata_h2o <- h2o::as.h2o(data)
-      as.vector(h2o::h2o.predict(best_model, newdata = newdata_h2o)$predict)
-    }
-  }
-  if (is.null(intervened_data)) {
-    return(list(pred = predict_fun(data), predict_fun = predict_fun))
-  } else {
-    return(predict_fun(intervened_data))
-  }
-}
-
-# coph learner for censoring
-learn_coxph <- function(character_formula,
-                        data,
-                        time_variable = "time",
-                        penalize, ...){
-    exp_lp <- surv <- hazard <- NULL
-    formula_cox <- as.formula(character_formula)
-
-    if (!penalize || length(labels(stats::terms(as.formula(character_formula)))) == 1){ ## do not run penalized regression with one covariate only
-        ## Fit the Cox model
-        fit <- coxph(formula_cox, data = data, x = TRUE)
-    } else {
-        ## use glmnet
-        fit<-riskRegression::GLMnet(formula_cox, data = data, family = "cox", alpha = 1)
-    }
-    list(pred = exp(-cumulative_hazard_cox(fit, data, data, time_variable, NULL)$Lambda_minus), fit = fit)
-}
-
-learn_glm_logistic <- function(character_formula,
-                               data,
-                               penalize, ...) {
-  formula_object <- as.formula(character_formula)
-  if (!penalize || length(labels(stats::terms(formula_object))) == 1){ ## do not run penalized regression with one covariate only
-      ## Fit the logistic regression model
-      fit <- stats::glm(formula_object, data = data, family = binomial(link = "logit"))
-      ## Predict on original data
-      predict(fit, type = "response")
-  } else {
-      ## Use Lasso with glmnet
-      X <- model.matrix(formula_object, data = data)
-      y <- data[[as.character(formula_object[[2]])]]
-      cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, family = "binomial")
-      fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min, family = "binomial")
-      as.vector(predict(fit, newx = X, s = "lambda.min", type = "response"))
-  }  
-}
-
-## Wrapper function to predict the outcome under an intervention
-predict_intervention <- function(data, k, predict_fun, static_intervention) {
-  event_k <- A_0 <- event_k_intervention <- NULL
-  intervened_data <- copy(data)
-  if (k > 0) {
-    intervened_data[event_k_intervention == "A", paste0("A_", k) := static_intervention, env = list(event_k_intervention = paste0("event_", k))]
-  } else {
-    intervened_data[, A_0 := static_intervention]
-  }
-  f <- predict_fun(intervened_data)
-
-  ## Check if the predictions are in the range [0,1] if so warn and truncate
-  if (any(f < 0 | f > 1)) {
-    message("Predictions contain values outside the range [0, 1]. Truncating to [0, 1].")
-    f <- pmin(pmax(f, 0), 1)
-  }
-  
-  ## Warn if any predictions are NA or below or above 1
-  if (any(is.na(f))) {
-    stop("Predictions contain NA values.")
-  }
-  f
-}
+######################################################################
+### learn_Q.R ends here

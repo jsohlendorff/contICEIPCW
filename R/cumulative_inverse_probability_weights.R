@@ -1,11 +1,11 @@
-### inverse_probability_weights.R --- 
+### cumulative_inverse_probability_weights.R --- 
 #----------------------------------------------------------------------
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (18:43) 
 ## Version: 
-## Last-Updated: Mar  6 2026 (10:45) 
+## Last-Updated: Mar 13 2026 (18:43) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 27
+##     Update #: 28
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
