@@ -60,13 +60,13 @@ test_that("test continuous time function (censored; conservative)", {
     )
 
     # Run debiased ICE-IPCW procedure
-    prep_data <- prepare_data(
+    prep_data <- suppressWarnings(prepare_data(
         data = data_continuous,
         max_time_horizon = 720,
         time_covariates = c("A", "L"),
         baseline_covariates = c("age", "A_0", "L_0"),
         marginal_censoring = FALSE
-    )
+    ))
     altered_data <- propensity_scores(
         prepared_data = prep_data,
         model_treatment = "learn_glm_logistic",
