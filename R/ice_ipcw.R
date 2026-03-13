@@ -93,7 +93,7 @@ debias_ice_ipcw <- function(prepared_data,
                             lag = NULL,
                             verbose = FALSE,
                             semi_tmle = FALSE) {
-    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
+    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- ipcw <- pseudo_outcome_unweighted <- NULL
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop("prepared_data must be an object of class 'debiased_prepared'.
               Please run the 'prepare_data' function and then the 'propensity_scores'
@@ -186,6 +186,7 @@ debias_ice_ipcw <- function(prepared_data,
 
         if (!conservative & is_censored) {
             if (semi_tmle) stop("semi-tmle not implemented yet for censored martingale")
+            message("conservative = FALSE on censored data. You're on shaky ground...")
             ic_final <- censoring_martingale(data_marginal_censoring,
                                              data_at_risk,
                                              at_risk_interevent,
@@ -208,9 +209,6 @@ debias_ice_ipcw <- function(prepared_data,
             ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("ipw_cum_weight", "id")], by = "id")
             if (semi_tmle) {
                 ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
-                X <- matrix(c(qlogis(ic_final$q_prediction), ic_final$ipw_cum_weight), ncol = 2)
-                X<-model.matrix(~ipw_cum_weight-1+offset(qlogis(q_prediction)), data = ic_final)
-                Y <- ic_final$pseudo_outcome
                 tryCatch({
                     epsilonhat <- estimating_equation_cpp(
                         X = as.matrix(ic_final$ipw_cum_weight),
@@ -220,7 +218,7 @@ debias_ice_ipcw <- function(prepared_data,
                         tol = 1e-8,
                         beta = 0,
                         solve_opts = "force_approx",
-                        offset = qlogis(ic_final$q_prediction)
+                        offset = logit(ic_final$q_prediction)
                     )[1,1]
                 }, error = function(e) {
                     warning("Error in glm.fit for TMLE update. Setting epsilonhat to 0.")
@@ -231,10 +229,9 @@ debias_ice_ipcw <- function(prepared_data,
                 ##  as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilonhat * ic_final$ipw_cum_weight)))
                 ##  }
                 ##  g2(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
-                q_prediction_prev <- stats::plogis(stats::qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$ipw_cum_weight))
+                q_prediction_prev <- expit(logit(ic_final$q_prediction) + epsilonhat * (ic_final$ipw_cum_weight))
                 ic_final$q_prediction <- q_prediction_prev
                 q_prediction$q_prediction_prev <- q_prediction_prev
-
             }
             ic_final <- ic_final[, ipw_cum_weight := ipw_cum_weight * (pseudo_outcome - q_prediction)]
         }

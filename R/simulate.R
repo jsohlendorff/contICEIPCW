@@ -94,6 +94,9 @@ rexponential_proportional_hazard <- function(n, rate, eta) {
 #' @param no_competing_events If \code{TRUE}, simulate from survival setup.
 #' @param limit_event_A Maximum number of treatment events.
 #' @param limit_event_L Maximum number of covariate events.
+#' @param aggregate_parameters Whether to aggregate parameters.
+#' @param static_intervention_stop If not \code{NULL} and if \code{static_intervention} is not \code{NULL}, then stop the intervention after the given number of events. 
+#' @param time_varying_covariate_cumulative_effect Whether there is a cumulative effect on outcome and covariates of \code{L}.
 #' @examples
 #' simulate_continuous_time_data(10)
 #' @export

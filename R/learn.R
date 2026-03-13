@@ -67,7 +67,7 @@ learn_Q <- function(model_type,
             scale <- 1
             data_learn$out <- data_learn[[outcome_name]]
             weights <- rep(1, nrow(data_learn))
-            family <- gaussian()
+            family <- stats::gaussian()
         }
 
         if (!penalize || length(history_of_variables) == 1){ ## do not run penalized regression with one covariate only
@@ -326,7 +326,7 @@ learn_glm_logistic <- function(character_formula,
 
 ## Wrapper function to predict the outcome under an intervention
 predict_intervention <- function(data, k, predict_fun, static_intervention) {
-  event_k <- A_0 <- NULL
+  event_k <- A_0 <- event_k_intervention <- NULL
   intervened_data <- copy(data)
   if (k > 0) {
     intervened_data[event_k_intervention == "A", paste0("A_", k) := static_intervention, env = list(event_k_intervention = paste0("event_", k))]

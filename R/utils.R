@@ -58,7 +58,7 @@ get_history_of_variables <- function(data,
 get_at_risk_data <- function(data,
                              k,
                              time_horizon = NULL) {
-    event_k_previous <- time_previous <- time_k <- time_k_prev_1 <- time_j <- event_j <- NULL
+    event_k_previous <- time_previous <- time_k <- time_k_prev_1 <- time_j <- event_j <- event_k <- time_k_prev <- event_k_prev <- NULL
     
     ## Create shortcuts for the k'th iteration
     data[, c("event_k", "time_k", "time_k_prev", "event_k_prev")

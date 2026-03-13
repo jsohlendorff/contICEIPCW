@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar  6 2026 (13:34) 
+## Last-Updated: Mar 13 2026 (18:19) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 221
+##     Update #: 224
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -63,7 +63,7 @@ propensity_scores <- function(prepared_data,
                               penalize_hazard = FALSE,
                               lag = NULL,
                               verbose = FALSE) {
-    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
+    time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }

@@ -61,6 +61,12 @@ If note \code{NULL}, the data is also uncensored.}
 
 \item{limit_event_A}{Maximum number of treatment events.}
 
+\item{aggregate_parameters}{Whether to aggregate parameters.}
+
+\item{static_intervention_stop}{If not \code{NULL} and if \code{static_intervention} is not \code{NULL}, then stop the intervention after the given number of events.}
+
+\item{time_varying_covariate_cumulative_effect}{Whether there is a cumulative effect on outcome and covariates of \code{L}.}
+
 \item{limit_event_L}{Maximum number of covariate events.}
 }
 \description{
