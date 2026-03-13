@@ -49,7 +49,6 @@ test_that("test continuous time function (uncensored)", {
 test_that("test continuous time function (censored; conservative)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -99,7 +98,6 @@ test_that("test continuous time function (censored; conservative)", {
 test_that("test continuous time function (censored; conservative; marginal_censoring_hazard)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -148,7 +146,6 @@ test_that("test continuous time function (censored; conservative; marginal_censo
 test_that("test continuous time function (censored; non_conservative; multiple ice)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -328,7 +325,6 @@ test_that("test continuous time function (uncensored; competing risks)", {
 test_that("test continuous time function (censored; conservative; competing risks)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -378,7 +374,6 @@ test_that("test continuous time function (censored; conservative; competing risk
 test_that("test continuous time function (censored; competing events; conservative; marginal_censoring)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -426,7 +421,6 @@ test_that("test continuous time function (censored; competing events; conservati
 test_that("test continuous time function (censored; competing events; conservative; marginal_censoring, multiple_ice", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -475,7 +469,6 @@ test_that("test continuous time function (censored; competing events; conservati
 test_that("test continuous time function (censored; competing events; oicpw_expit)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -525,7 +518,6 @@ test_that("test continuous time function (censored; competing events; oicpw_expi
 test_that("test continuous time function (censored; competing events; oicpw_probit)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
     
     set.seed(34)
@@ -575,7 +567,6 @@ test_that("test continuous time function (censored; competing events; oicpw_prob
 test_that("test continuous time function (censored; competing events; nls_expit", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
     
     set.seed(34)
@@ -624,7 +615,6 @@ test_that("test continuous time function (censored; competing events; nls_expit"
 test_that("test continuous time function (censored; competing events; nls_probit)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -673,7 +663,6 @@ test_that("test continuous time function (censored; competing events; nls_probit
 test_that("test continuous time function (censored; competing events; ipcw_glm_expit)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -722,7 +711,6 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
 test_that("test continuous time function (censored; competing events; lm, penalize)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -772,7 +760,6 @@ test_that("test continuous time function (censored; competing events; lm, penali
 test_that("test continuous time function (censored; competing events; ipcw_glm_expit, penalize)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -824,7 +811,6 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
 test_that("test continuous time function (censored; competing events; ipcw_glm_expit, penalize_treatment)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)
@@ -876,7 +862,6 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
 test_that("test continuous time function (censored; competing events; ipcw_glm_expit, penalize_censoring)", {
     library(survival)
     library(data.table)
-    library(prodlim)
     library(riskRegression)
 
     set.seed(34)

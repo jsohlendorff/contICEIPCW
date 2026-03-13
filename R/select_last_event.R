@@ -1,11 +1,11 @@
-### select_event.R --- 
+### select_last_event.R --- 
 #----------------------------------------------------------------------
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (12:26) 
 ## Version: 
-## Last-Updated: Mar  6 2026 (14:33) 
+## Last-Updated: Mar 13 2026 (18:45) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 22
+##     Update #: 23
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 

@@ -13,22 +13,16 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Imports:
-    ggplot2,
-    prodlim,
+    data.table,
     Rcpp,
     riskRegression,
     survival,
-    Rfast,
-    lava,
-    zoo,
-    nleqslv,
     glmnet
-Depends:
-    data.table
 Suggests: 
     testthat (>= 3.0.0),
+    nleqslv,
     h2o,
-    ranger
+    Rfast
 Config/testthat/edition: 3
 URL: https://github.com/jsohlendorff/contICEIPCW
 BugReports: https://github.com/jsohlendorff/contICEIPCW/issues
