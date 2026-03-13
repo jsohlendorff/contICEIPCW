@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // estimating_equation_cpp
-arma::vec estimating_equation_cpp(const arma::mat& X, const arma::vec& Y, std::string model_type, arma::vec beta, std::string solve_opts, int maxit, double tol, bool verbose);
-RcppExport SEXP _contICEIPCW_estimating_equation_cpp(SEXP XSEXP, SEXP YSEXP, SEXP model_typeSEXP, SEXP betaSEXP, SEXP solve_optsSEXP, SEXP maxitSEXP, SEXP tolSEXP, SEXP verboseSEXP) {
+arma::vec estimating_equation_cpp(const arma::mat& X, const arma::vec& Y, std::string model_type, arma::vec beta, arma::vec offset, std::string solve_opts, int maxit, double tol, bool verbose);
+RcppExport SEXP _contICEIPCW_estimating_equation_cpp(SEXP XSEXP, SEXP YSEXP, SEXP model_typeSEXP, SEXP betaSEXP, SEXP offsetSEXP, SEXP solve_optsSEXP, SEXP maxitSEXP, SEXP tolSEXP, SEXP verboseSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -21,17 +21,18 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const arma::vec& >::type Y(YSEXP);
     Rcpp::traits::input_parameter< std::string >::type model_type(model_typeSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type offset(offsetSEXP);
     Rcpp::traits::input_parameter< std::string >::type solve_opts(solve_optsSEXP);
     Rcpp::traits::input_parameter< int >::type maxit(maxitSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(estimating_equation_cpp(X, Y, model_type, beta, solve_opts, maxit, tol, verbose));
+    rcpp_result_gen = Rcpp::wrap(estimating_equation_cpp(X, Y, model_type, beta, offset, solve_opts, maxit, tol, verbose));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_contICEIPCW_estimating_equation_cpp", (DL_FUNC) &_contICEIPCW_estimating_equation_cpp, 8},
+    {"_contICEIPCW_estimating_equation_cpp", (DL_FUNC) &_contICEIPCW_estimating_equation_cpp, 9},
     {NULL, NULL, 0}
 };
 

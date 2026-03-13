@@ -207,20 +207,39 @@ debias_ice_ipcw <- function(prepared_data,
             ## If conservative, we do not compute the martingale terms
             ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("ipw_cum_weight", "id")], by = "id")
             if (semi_tmle) {
-                max_pseudo_outcome <- max(ic_final$pseudo_outcome)
-                ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
-                ic_final$f_pseudo_outcome <- ic_final$pseudo_outcome / max_pseudo_outcome
-                ic_final$f_q_prediction <- ic_final$q_prediction / max_pseudo_outcome
-                epsilonhat <- stats::glm(f_pseudo_outcome~ipw_cum_weight-1+offset(qlogis(f_q_prediction)),family="quasibinomial",data = ic_final)$coefficients[1]
-                ic_final[, c("f_pseudo_outcome", "f_q_prediction") := NULL]
+                ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
+                X <- matrix(c(qlogis(ic_final$q_prediction), ic_final$ipw_cum_weight), ncol = 2)
+                X<-model.matrix(~ipw_cum_weight-1+offset(qlogis(q_prediction)), data = ic_final)
+                Y <- ic_final$pseudo_outcome
+                tryCatch({
+                    epsilonhat <- estimating_equation_cpp(
+                        X = as.matrix(ic_final$ipw_cum_weight),
+                        Y = ic_final$pseudo_outcome,
+                        model_type = "oipcw_expit",
+                        maxit = 1000,
+                        tol = 1e-8,
+                        beta = 0,
+                        solve_opts = "force_approx",
+                        offset = qlogis(ic_final$q_prediction)
+                    )[1,1]
+                }, error = function(e) {
+                    warning("Error in glm.fit for TMLE update. Setting epsilonhat to 0.")
+                    epsilonhat <<- 0
+                })
+                ##  # Debug
+                ##  g2 <- function(epsilon, ipw, pseudo_outcome,q_pred) {
+                ##  as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilonhat * ic_final$ipw_cum_weight)))
+                ##  }
+                ##  g2(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
                 q_prediction_prev <- stats::plogis(stats::qlogis(ic_final$q_prediction) + epsilonhat * (ic_final$ipw_cum_weight))
                 ic_final$q_prediction <- q_prediction_prev
                 q_prediction$q_prediction_prev <- q_prediction_prev
+
             }
-            ic_final <- ic_final[, ipw_cum_weight := ipw_cum_weight * (pseudo_outcome - q_prediction)] # pseudo_outcome: Z. pred: Q
+            ic_final <- ic_final[, ipw_cum_weight := ipw_cum_weight * (pseudo_outcome - q_prediction)]
         }
         ic_final <- ic_final[, c("ipw_cum_weight", "id")]
-        ## Now add the influence curve to the data data
+        ## Now add the influence curve to the data 
         data[, ipw_cum_weight := NULL]
         data <- merge(ic_final, data, by = "id", all = TRUE)
         data[is.na(ipw_cum_weight), ipw_cum_weight := 0]

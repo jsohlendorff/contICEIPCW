@@ -23,6 +23,7 @@ arma::vec estimating_equation_cpp(
     const arma::vec& Y,
     std::string model_type,
     arma::vec beta,
+    arma::vec offset,
     std::string solve_opts = "fast",
     int maxit = 100,
     double tol = 1e-8,
@@ -42,7 +43,7 @@ arma::vec estimating_equation_cpp(
   
   for(int iter = 0; iter < maxit; iter++) {
     
-    vec eta = X * beta;
+    vec eta = X * beta + offset;
     vec mu, pdf, F, w;
     mat J;
     

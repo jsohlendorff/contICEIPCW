@@ -152,7 +152,8 @@ learn_Q <- function(model_type,
                maxit = 1000,
                tol = 1e-8,
                beta = beta_init,
-               solve_opts = "force_approx"
+               solve_opts = "force_approx",
+               offset = rep(0, nrow(X))
            )))
        } else {
            fit <- nleqslv::nleqslv(f = g, x = beta_init, X = X, Y = Y, control = list(maxit = 1000, allowSingular = TRUE))$x
@@ -210,6 +211,16 @@ learn_Q <- function(model_type,
 }
 
 ## Example function
+## Export
+##' Learn a model using H2O AutoML and return a prediction function
+##' @param character_formula A character string representing the formula for the model, e.g., "outcome ~ var1 + var2".
+##' @param data A data.table containing the data to learn the model from.
+##' @param intervened_data A data.table containing the data to predict on under the intervention. If NULL, predictions will be made on the original data.
+##' @param max_runtime_secs Maximum runtime for H2O AutoML in seconds.
+##' @param nfolds Number of folds for cross-validation in H2O AutoML.
+##' @param verbose Whether to print H2O AutoML output.
+##' @param ... Additional arguments to pass to H2O AutoML.
+##' @export 
 learn_h2o <- function(character_formula,
                       data,
                       intervened_data = NULL,
@@ -323,7 +334,13 @@ predict_intervention <- function(data, k, predict_fun, static_intervention) {
     intervened_data[, A_0 := static_intervention]
   }
   f <- predict_fun(intervened_data)
-  ## TODO: Check if the predictions are in the range [0,1]
+
+  ## Check if the predictions are in the range [0,1] if so warn and truncate
+  if (any(f < 0 | f > 1)) {
+    message("Predictions contain values outside the range [0, 1]. Truncating to [0, 1].")
+    f <- pmin(pmax(f, 0), 1)
+  }
+  
   ## Warn if any predictions are NA or below or above 1
   if (any(is.na(f))) {
     stop("Predictions contain NA values.")

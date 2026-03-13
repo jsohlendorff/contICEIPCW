@@ -250,13 +250,7 @@ test_that("semiTMLE option", {
     data_continuous <- simulate_continuous_time_data(
         n = 1000,
         no_competing_events = TRUE,
-        uncensored = TRUE
-    )
-        # Simulate continuous time data with continuous and irregular event times
-    data_continuous <- simulate_continuous_time_data(
-        n = 1000,
-        no_competing_events = TRUE,
-        uncensored = TRUE
+        uncensored = FALSE
     )
 
     prep_data <- prepare_data(
@@ -268,15 +262,15 @@ test_that("semiTMLE option", {
     altered_data <- propensity_scores(
         prepared_data = prep_data,
         model_treatment = "learn_glm_logistic",
-        model_hazard = NULL
+        model_hazard = "learn_coxph"
     )
 
     # Run debiased ICE-IPCW procedure
     expect_no_error(result <- debias_ice_ipcw(
         prepared_data = altered_data,
         time_horizon = 720,
-        model_pseudo_outcome = "quasibinomial",
-        model_hazard = NULL,
+        model_pseudo_outcome = "oipcw_expit",
+        model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE,
         semi_tmle = TRUE

@@ -187,6 +187,9 @@ simulate_continuous_time_data <- function(n,
                                           uncensored = FALSE,
                                           K = 3,
                                           limit_event_A = 1,
+                                          aggregate_parameters = FALSE,
+                                          static_intervention_stop = NULL,
+                                          time_varying_covariate_cumulative_effect = TRUE,
                                           limit_event_L = 1) {
     L_0 <- A_0 <- age <- id <- time <- event <- L <- A <- n_A_events <- n_L_events <- new_A <- entrytime <- NULL
     if (!is.null(static_intervention)) {
@@ -196,6 +199,15 @@ simulate_continuous_time_data <- function(n,
         age <- stats::runif(n, 40, 90)
     } else {
         age <- sample(c(50, 70), n, replace = TRUE)
+    }
+    if (aggregate_parameters) {
+        ## Copy the parameters for the first time point to the other time points
+        effect_names <- c("alpha_A_", "beta_l_", "beta_c_", "beta_y_", "beta_d_")
+        for (name in effect_names) {
+            for (j in 2:K) {
+                effects[[paste0(name, j)]] <- effects[[paste0(name, 1)]]
+            }
+        }         
     }
 
     # baseline variables
@@ -330,7 +342,6 @@ simulate_continuous_time_data <- function(n,
         # update propensity score
         if (!is.null(static_intervention)) {
             people_atrisk[event == "A", new_A := static_intervention]
-            people_atrisk[event == "A", n_A_events := n_A_events + 1]
         } else {
             people_atrisk[event == "A", new_A := stats::rbinom(
                                                             .N, 1,
@@ -339,9 +350,13 @@ simulate_continuous_time_data <- function(n,
                                                                         effects[[paste0("alpha_A_", j)]]$time * time +
                                                                         effects[[paste0("alpha_A_", j)]]$age * age)
                                                         )]
-            people_atrisk[event == "A", n_A_events := n_A_events + 1]
         }
-        people_atrisk[event == "L", L := L + 1] ## Could be updated based on new_A
+        people_atrisk[event == "A", n_A_events := n_A_events + 1]
+        if (!time_varying_covariate_cumulative_effect) {
+            people_atrisk[event == "L", L := stats::rbinom(.N, 1, 0.5)]
+        } else {
+            people_atrisk[event == "L", L := L + 1]
+        }
         people_atrisk[event == "L", n_L_events := n_L_events + 1]
         people_atrisk[event == "A", A := new_A]
 
