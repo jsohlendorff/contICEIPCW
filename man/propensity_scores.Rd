@@ -11,6 +11,7 @@ propensity_scores(
   model_hazard,
   penalize_hazard = FALSE,
   lag = NULL,
+  static_intervention = 1,
   verbose = FALSE
 )
 }
@@ -28,6 +29,8 @@ Options include \code{"learn_coxph"} (Cox proportional hazards model).}
 \item{penalize_hazard}{Logical; if \code{TRUE}, applies L1 regularization to the hazard model.}
 
 \item{lag}{Optional numeric indicating the number of previous events included in the formulas for the models.}
+
+\item{static_intervention}{Numeric value indicating the treatment level for the static intervention (default is 1).}
 
 \item{verbose}{Logical; if \code{TRUE}, prints additional information during model fitting.}
 }

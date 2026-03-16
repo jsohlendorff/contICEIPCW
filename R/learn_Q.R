@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (19:09) 
+## Last-Updated: Mar 16 2026 (17:37) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 5
+##     Update #: 8
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -30,13 +30,14 @@ learn_Q <- function(model_type,
                     outcome_string_unweighted = NULL,
                     ipcw_name = NULL,
                     penalize) {
+    
     max_weight <- max(data_learn[[outcome_name]])
     if (is.null(max_weight) || is.na(max_weight)) {
         stop("The 'weight' column in data_learn must not be NULL or NA.")
     }
     if (max_weight == 0) {
         predict_fun <- function(data) {
-            warning("All weights are zero. Returning a constant prediction of zero.")
+            warning("All weights are zero. Returning a constant prediction of zero. This behavior is unproblematic if the event of interest does not occur for the k'th event for those at risk of a k'th event")
             rep(0, nrow(data))
         }
         return(predict_fun)

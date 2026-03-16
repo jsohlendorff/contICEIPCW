@@ -228,7 +228,7 @@ debias_ice_ipcw <- function(prepared_data,
                 ##  g2 <- function(epsilon, ipw, pseudo_outcome,q_pred) {
                 ##  as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilonhat * ic_final$ipw_cum_weight)))
                 ##  }
-                ##  g2(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
+                ## g2(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
                 q_prediction_prev <- expit(logit(ic_final$q_prediction) + epsilonhat * (ic_final$ipw_cum_weight))
                 ic_final$q_prediction <- q_prediction_prev
                 q_prediction$q_prediction_prev <- q_prediction_prev

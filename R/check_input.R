@@ -2,7 +2,7 @@ check_input <- function(baseline_covariates,
                         time_covariates,
                         data,
                         time_horizon) {
-    id<-time<-N<-.<-..<-NULL
+    event<-terminal_time<-id<-time<-N<-.<-..<-NULL
     ## TODO: Need to more thorougly check user input.
     ## Check the baseline covariates and time covariates are not empty and character strings
     if (length(baseline_covariates) == 0 || !is.character(baseline_covariates)) {
@@ -62,7 +62,21 @@ check_input <- function(baseline_covariates,
     if (nrow(ties_check) > 0) {
         stop("There are ties in event times for some ids. Please ensure that each id has unique event times.")
     }
-}
 
+    ## Check that no non-terminal events occur after any terminal events for each id
+    terminal_events <- data$timevarying_data[event %in% c("Y", "D", "C", "tauend"), .(terminal_time = min(time)), by = id]
+    data_with_terminal <- merge(data$timevarying_data, terminal_events, by = "id", all.x = TRUE)
+    non_terminal_after_terminal <- data_with_terminal[time > terminal_time]
+    if (nrow(non_terminal_after_terminal) > 0) {
+        stop("There are non-terminal events occurring after terminal events for some ids. Please ensure that
+    non-terminal events do not occur after terminal events.")
+    }
+
+    ## Check that the last event for each id is a terminal event
+    last_event_check <- data$timevarying_data[, .SD[.N], by = id]
+    if (any(!(last_event_check$event %in% c("Y", "D", "C", "tauend")))) {
+        stop("The last event for each id must be a terminal event (Y, D, C, or tauend). Please ensure that the last event for each id is a terminal event.")
+    }
+}
 ######################################################################
 ### check_input.R ends here

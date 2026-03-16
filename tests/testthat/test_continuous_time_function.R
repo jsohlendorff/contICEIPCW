@@ -67,11 +67,11 @@ test_that("test continuous time function (censored; conservative)", {
         baseline_covariates = c("age", "A_0", "L_0"),
         marginal_censoring = FALSE
     )
-    altered_data <- propensity_scores(
+    altered_data <- suppressWarnings(propensity_scores(
         prepared_data = prep_data,
         model_treatment = "learn_glm_logistic",
         model_hazard = "learn_coxph"
-    )
+    ))
 
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
@@ -206,12 +206,12 @@ test_that("error when time-varying covariates contain NAs", {
     data_continuous$timevarying_data[event == "tauend", L := NA]
     expect_error(
         prepare_data(
-        data = data_continuous,
-        max_time_horizon = 720,
-        time_covariates = c("A", "L"),
-        baseline_covariates = c("age", "A_0", "L_0"),
-        marginal_censoring = TRUE
-    ),
+            data = data_continuous,
+            max_time_horizon = 720,
+            time_covariates = c("A", "L"),
+            baseline_covariates = c("age", "A_0", "L_0"),
+            marginal_censoring = TRUE
+        ),
         "Time-varying covariates must not contain NULL or NA values."
     )
 })
@@ -229,12 +229,12 @@ test_that("error when time-varying covariates contain ties", {
     data_continuous$timevarying_data[id == "2", time := 5]
     expect_error(
         prepare_data(
-        data = data_continuous,
-        max_time_horizon = 720,
-        time_covariates = c("A", "L"),
-        baseline_covariates = c("age", "A_0", "L_0"),
-        marginal_censoring = TRUE
-    ),
+            data = data_continuous,
+            max_time_horizon = 720,
+            time_covariates = c("A", "L"),
+            baseline_covariates = c("age", "A_0", "L_0"),
+            marginal_censoring = TRUE
+        ),
         "There are ties in event times for some ids. Please ensure that each id has unique event times"
     )
 })
@@ -264,14 +264,14 @@ test_that("semiTMLE option", {
 
     # Run debiased ICE-IPCW procedure
     expect_no_error(result <- debias_ice_ipcw(
-        prepared_data = altered_data,
-        time_horizon = 720,
-        model_pseudo_outcome = "oipcw_expit",
-        model_hazard = "learn_coxph",
-        conservative = TRUE,
-        verbose = FALSE,
-        semi_tmle = TRUE
-    ))
+                        prepared_data = altered_data,
+                        time_horizon = 720,
+                        model_pseudo_outcome = "oipcw_expit",
+                        model_hazard = "learn_coxph",
+                        conservative = TRUE,
+                        verbose = FALSE,
+                        semi_tmle = TRUE
+                    ))
 })
 
 test_that("test continuous time function (uncensored; competing risks)", {
@@ -286,7 +286,7 @@ test_that("test continuous time function (uncensored; competing risks)", {
     )
 
     # Run debiased ICE-IPCW procedure
-        prep_data <- prepare_data(
+    prep_data <- prepare_data(
         data = data_continuous,
         max_time_horizon = 720,
         time_covariates = c("A", "L"),
@@ -698,13 +698,13 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
     )
 
     correct_result <- data.table::data.table(
-  estimate = 0.28477536762863775,
-  se = 0.0168471119505276,
-  lower = 0.25175502820560364,
-  upper = 0.31779570705167187,
-  ice_ipcw_estimate = 0.28426232748420016,
-  ipw = 0.28495738884128674
-)
+                                      estimate = 0.28477536762863775,
+                                      se = 0.0168471119505276,
+                                      lower = 0.25175502820560364,
+                                      upper = 0.31779570705167187,
+                                      ice_ipcw_estimate = 0.28426232748420016,
+                                      ipw = 0.28495738884128674
+                                  )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
 
@@ -747,13 +747,13 @@ test_that("test continuous time function (censored; competing events; lm, penali
     )
 
     correct_result <- data.table::data.table(
-  estimate = 0.28487619124871394,
-  se = 0.01684739758956828,
-  lower = 0.25185529197316014,
-  upper = 0.31789709052426773,
-  ice_ipcw_estimate = 0.28585935059573064,
-  ipw = 0.28495738884128674
-)
+                                      estimate = 0.28487619124871394,
+                                      se = 0.01684739758956828,
+                                      lower = 0.25185529197316014,
+                                      upper = 0.31789709052426773,
+                                      ice_ipcw_estimate = 0.28585935059573064,
+                                      ipw = 0.28495738884128674
+                                  )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
 
@@ -797,13 +797,13 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
     )
 
     correct_result <- data.table::data.table(
-  estimate = 0.2849064860164079,
-  se = 0.016847871887799126,
-  lower = 0.2518846571163216,
-  upper = 0.3179283149164942,
-  ice_ipcw_estimate = 0.28577586012994194,
-  ipw = 0.28495738884128674
-)
+                                      estimate = 0.2849064860164079,
+                                      se = 0.016847871887799126,
+                                      lower = 0.2518846571163216,
+                                      upper = 0.3179283149164942,
+                                      ice_ipcw_estimate = 0.28577586012994194,
+                                      ipw = 0.28495738884128674
+                                  )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
 
@@ -848,13 +848,13 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
     )
 
     correct_result <- data.table::data.table(
-  estimate = 0.2847965969206015,
-  se = 0.016833646114405392,
-  lower = 0.2518026505363669,
-  upper = 0.3177905433048361,
-  ice_ipcw_estimate = 0.28426232748420016,
-  ipw = 0.2852488617655428
-)
+                                      estimate = 0.2847965969206015,
+                                      se = 0.016833646114405392,
+                                      lower = 0.2518026505363669,
+                                      upper = 0.3177905433048361,
+                                      ice_ipcw_estimate = 0.28426232748420016,
+                                      ipw = 0.2852488617655428
+                                  )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
 
@@ -880,12 +880,12 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
         baseline_covariates = c("age", "A_0", "L_0"),
         marginal_censoring = FALSE
     )
-    altered_data <- propensity_scores(
+    altered_data <- suppressWarnings(propensity_scores(
         prepared_data = prep_data,
         model_treatment = "learn_glm_logistic",
         model_hazard = "learn_coxph",
         penalize_hazard = TRUE
-    )
+    ))
 
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
@@ -898,12 +898,12 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
     )
 
     correct_result <- data.table::data.table(
-  estimate = 0.28474220931806654,
-  se = 0.016843244444304774,
-  lower = 0.2517294502072292,
-  upper = 0.3177549684289039,
-  ice_ipcw_estimate = 0.2846316598183721,
-  ipw = 0.284940461612925
-)
+                                      estimate = 0.28474220931806654,
+                                      se = 0.016843244444304774,
+                                      lower = 0.2517294502072292,
+                                      upper = 0.3177549684289039,
+                                      ice_ipcw_estimate = 0.2846316598183721,
+                                      ipw = 0.284940461612925
+                                  )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })

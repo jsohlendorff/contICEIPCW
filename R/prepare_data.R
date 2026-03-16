@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (19:33) 
 ## Version: 
-## Last-Updated: Mar  6 2026 (14:33) 
+## Last-Updated: Mar 16 2026 (23:11) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 36
+##     Update #: 41
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -39,6 +39,7 @@
 #' @param last_non_terminal_event Optional numeric indicating the last nonterminal event number to consider
 #'   in the outcome.
 #' @param marginal_censoring Logical; if \code{TRUE}, assumes censoring depends only on baseline covariates.
+#' @param min_events Numeric; data-adaptive threshold for selecting last event number if \code{last_non_terminal_event} is not provided. 
 #' @export
 #'
 #' @examples
@@ -68,6 +69,7 @@ prepare_data <- function(data,
                          time_covariates,
                          baseline_covariates,
                          marginal_censoring = TRUE,
+                         min_events = 40,
                          last_non_terminal_event = NULL) {
     event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
     ## Check user input
@@ -81,7 +83,7 @@ prepare_data <- function(data,
     ## select last event number adaptively because the iterative
     ## regressions may not have sufficient data to fit the models for later events.
     ## NOTE: Modifies data.
-    select_last_event_out <- select_last_event(timevarying_data, max_time_horizon, last_non_terminal_event)
+    select_last_event_out <- select_last_event(timevarying_data, max_time_horizon, last_non_terminal_event, min_events)
     timevarying_data <- select_last_event_out$timevarying_data
     last_event <- select_last_event_out$last_event
     

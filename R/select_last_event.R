@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (12:26) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:45) 
+## Last-Updated: Mar 16 2026 (23:12) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 23
+##     Update #: 52
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -16,8 +16,8 @@
 ### Code:
 
 ## Adaptively select last event based on the data if not provided
-select_last_event <- function(timevarying_data, time_horizon, last_non_terminal_event) {
-    time <- event <- event_number <- id <- N <- NULL
+select_last_event <- function(timevarying_data, time_horizon, last_non_terminal_event, min_events = 40) {
+    time <- event <- event_number <- id <- N <- . <- NULL
     if (is.null(last_non_terminal_event)) {
         at_risk_table <- timevarying_data[time < time_horizon & event %in% c("A", "L"), .N, by = "event_number"]
         if (nrow(at_risk_table) == 0) {
@@ -25,19 +25,21 @@ select_last_event <- function(timevarying_data, time_horizon, last_non_terminal_
             last_non_terminal_event <- 0
         } else {
             max_event_number <- max(at_risk_table$event_number)
-            last_non_terminal_event <- at_risk_table[N > 40, event_number[.N]]
+            last_non_terminal_event <- at_risk_table[N > min_events, event_number[.N]]
             if (last_non_terminal_event < max_event_number) {
                 message(
-                    "Adaptively selecting last event number (N <= 40). Event number: ",
+                    "Adaptively selecting last event number (N <= ", min_events, "). Event number: ",
                     last_non_terminal_event
                 )
             }
         }
     }
+    ## We should only start at the last event at which there is a terminal events, otherwise the iterative regression would just be regressing zero outcomes
+    max_event_number_outcome <- timevarying_data[time <= time_horizon & event %in% "Y", .(max(event_number))]$V1
 
     timevarying_data <- timevarying_data[event_number <= last_non_terminal_event | !(event %in% c("A", "L"))]
     timevarying_data <- timevarying_data[, event_number := seq_len(.N), by = id]
-    return(list(timevarying_data = timevarying_data, last_event = last_non_terminal_event + 1))
+    return(list(timevarying_data = timevarying_data, last_event = min(last_non_terminal_event + 1, max_event_number_outcome)))
 }
 
 ######################################################################

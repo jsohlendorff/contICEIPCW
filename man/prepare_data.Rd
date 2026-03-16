@@ -10,6 +10,7 @@ prepare_data(
   time_covariates,
   baseline_covariates,
   marginal_censoring = TRUE,
+  min_events = 40,
   last_non_terminal_event = NULL
 )
 }
@@ -38,6 +39,8 @@ treated as time-varying covariates. Must include values of time-varying covariat
 considered baseline (time-invariant) covariates. Must include treatment and time-varying covariates.}
 
 \item{marginal_censoring}{Logical; if \code{TRUE}, assumes censoring depends only on baseline covariates.}
+
+\item{min_events}{Numeric; data-adaptive threshold for selecting last event number if \code{last_non_terminal_event} is not provided.}
 
 \item{last_non_terminal_event}{Optional numeric indicating the last nonterminal event number to consider
 in the outcome.}

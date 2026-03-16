@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:45) 
+## Last-Updated: Mar 16 2026 (23:12) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 225
+##     Update #: 268
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -25,6 +25,7 @@
 #' @param verbose Logical; if \code{TRUE}, prints additional information during model fitting.
 #' @param penalize_treatment Logical; if \code{TRUE}, applies L1 regularization to the treatment propensity score model.
 #' @param penalize_hazard Logical; if \code{TRUE}, applies L1 regularization to the hazard model.
+#' @param static_intervention Numeric value indicating the treatment level for the static intervention (default is 1).
 #'
 #' @export
 #' @examples
@@ -62,8 +63,9 @@ propensity_scores <- function(prepared_data,
                               model_hazard,
                               penalize_hazard = FALSE,
                               lag = NULL,
+                              static_intervention = 1,
                               verbose = FALSE) {
-    time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
+    time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- A_var <- A_0 <- NULL
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }
@@ -139,11 +141,10 @@ propensity_scores <- function(prepared_data,
                                               penalize = penalize_hazard)
 
             } else {
-                # Ensure Cox.
-                # Too difficult without...
+                # Ensure Cox...
                 # Have to compute Lambda^c (T_(k,i)- | F_(k-1,i)).
                 if (!inherits(marginal_censoring_fit$fit, "coxph")) {
-                    stop("Censoring model must be a Cox proportional hazards model when marginal_censoring is TRUE.")
+                    stop("Censoring model must be a Cox proportional hazards model when marginal_censoring is TRUE (for now).")
                 }
 
                 data_use <- data[event_k_prev %in% c("A", "L")]
@@ -153,6 +154,10 @@ propensity_scores <- function(prepared_data,
                 learn_censoring <- list(
                     pred = exp(-data_use$Lambda_minus)
                 )
+                ## Check that no pred is 0 or NA
+                if (any(is.na(learn_censoring$pred)) || any(learn_censoring$pred == 0)) {
+                    stop(paste0("NA or zero values for IPCW"))
+                }
             }
             if (k > 1) {
                 data[event_k_prev %in% c("A", "L"),
@@ -172,10 +177,11 @@ propensity_scores <- function(prepared_data,
             if (all(data[event_k == "A", A_k == 1])) {
                 data[event_k == "A", paste0("propensity_",k) := 1]
             } else {
+                data[, A_var:= get(paste0("A_", k)) == static_intervention]
                 data[event_k == "A", paste0("propensity_",k) := regression_fit(
                     data = .SD,
                     model_regression = model_treatment,
-                    outcome_string = paste0("A_", k),
+                    outcome_string = "A_var",
                     covariates = NULL,
                     formula_strategy = "additive",
                     use_history_of_variables = TRUE,
@@ -186,6 +192,11 @@ propensity_scores <- function(prepared_data,
                     type = "propensity",
                     penalize = penalize_treatment
                 )]
+                data[, A_var := NULL]
+                ## Stop if any propensity scores are NA
+                if (data[event_k == "A", .(any(is.na(propensity_k) | propensity_k == 0)), env = list(propensity_k = paste0("propensity_", k))]$V1) {
+                    stop(paste0("NA or zero values in propensity scores for event ", k, ". "))
+                }
             }
         }
     }
@@ -198,12 +209,13 @@ propensity_scores <- function(prepared_data,
         ## check whethe any baseline covariates should be deleted
         baseline_covariates <- setdiff(
             baseline_covariates,
-            names(which(vapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1))))
+            c("A_0",names(which(vapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1)))))
         )
+        data[, A_var := A_0 == static_intervention]
         data[, propensity_0 := regression_fit(
             data = .SD,
             model_regression = model_treatment,
-            outcome_string = "A_0",
+            outcome_string = "A_var",
             covariates = baseline_covariates,
             formula_strategy = "additive",
             use_history_of_variables = FALSE,
@@ -211,8 +223,14 @@ propensity_scores <- function(prepared_data,
             baseline_covariates = baseline_covariates,
             type = "propensity",
             penalize = penalize_treatment
-        )]
+            )]
+        data[, A_var := NULL]
+        ## Check if any propensity scores are NA
+        if (data[, .(any(is.na(propensity_0) | propensity_0 == 0))]$V1) {
+           stop("NA or zero values in baseline propensity scores. ")
+        }
     }
+    data[, c("event_k", "time_k", "time_k_prev", "event_k_prev", "A_k") := NULL]
     out<-list(marginal_censoring_fit = marginal_censoring_fit,
               data = data,
               prepared_data_object = prepared_data)
