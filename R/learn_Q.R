@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (14:51) 
+## Last-Updated: Mar 18 2026 (15:43) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 18
+##     Update #: 25
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -101,7 +101,27 @@ learn_Q <- function(model_type,
            ## Use Lasso with glmnet
            X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
            y <- data_learn[["out"]]
-           cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, family = family)
+           ## If CV fit has try error
+           ## do the followingb
+               ##            if (verbose) {
+               ##     warning("glmnet cv.glmnet failed: ", e$message)
+               ##     message("Trying different lambda sequence for glmnet...")
+               ## } 
+               ## lambdas <- glmnet::glmnet(X, y, alpha = 1, weights = weights, family = family)$lambda
+               ## cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, lambda = lambdas, family = family)
+
+           tryCatch({
+               cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, family = family)
+           },
+           error = function(e) {
+                if (verbose) {
+                     warning("glmnet cv.glmnet failed: ", e$message)
+                     message("Trying different lambda sequence for glmnet...")
+                } 
+                lambdas <- glmnet::glmnet(X, y, alpha = 1, weights = weights, family = family)$lambda
+                cv_fit <<- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, lambda = lambdas, family = family)
+           })
+           
            fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min, weights = weights, family = family)
               predict_fun <- function(data) {
                 X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)
