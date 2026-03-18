@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (19:22) 
+## Last-Updated: Mar 18 2026 (14:37) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 439
+##     Update #: 441
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -91,7 +91,8 @@ censoring_martingale <- function(
         time_covariates = time_covariates,
         baseline_covariates = baseline_covariates,
         time_variable = time_k,
-        penalize = penalty_hazard
+        penalize = penalty_hazard,
+        verbose = FALSE
     )
 
     if (!inherits(surv_fit$fit, "coxph"))
@@ -152,7 +153,8 @@ censoring_martingale <- function(
                 time_covariates = time_covariates,
                 baseline_covariates = baseline_covariates,
                 type = "pseudo_outcome",
-                penalize = penalize_pseudo_outcome
+                penalize = penalize_pseudo_outcome,
+                verbose = FALSE
             )
 
             dt[, q_pred_u := q_fit(.SD)]

@@ -67,11 +67,11 @@ test_that("test continuous time function (censored; conservative)", {
         baseline_covariates = c("age", "A_0", "L_0"),
         marginal_censoring = FALSE
     )
-    altered_data <- suppressWarnings(propensity_scores(
+    altered_data <- propensity_scores(
         prepared_data = prep_data,
         model_treatment = "learn_glm_logistic",
         model_hazard = "learn_coxph"
-    ))
+    )
 
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
@@ -239,7 +239,7 @@ test_that("error when time-varying covariates contain ties", {
     )
 })
 
-test_that("semiTMLE option", {
+test_that("update_TMLE option + version", {
     library(data.table)
 
     set.seed(34)
@@ -254,24 +254,36 @@ test_that("semiTMLE option", {
         data = data_continuous,
         max_time_horizon = 720,
         time_covariates = c("A", "L"),
-        baseline_covariates = c("age", "A_0", "L_0")
+        baseline_covariates = c("age", "A_0", "L_0"),
+        verbose = TRUE
     )
     altered_data <- propensity_scores(
         prepared_data = prep_data,
         model_treatment = "learn_glm_logistic",
-        model_hazard = "learn_coxph"
+        model_hazard = "learn_coxph",
+        verbose = TRUE
     )
 
     # Run debiased ICE-IPCW procedure
-    expect_no_error(result <- debias_ice_ipcw(
+    result <- debias_ice_ipcw(
                         prepared_data = altered_data,
                         time_horizon = 720,
                         model_pseudo_outcome = "oipcw_expit",
                         model_hazard = "learn_coxph",
                         conservative = TRUE,
-                        verbose = FALSE,
-                        semi_tmle = TRUE
-                    ))
+                        verbose = TRUE,
+                        tmle_update = TRUE
+    )
+
+    correct_result <- data.table::data.table(
+                                      estimate = 0.2707014384434423,
+                                      se = 0.01676985289712445,
+                                      lower = 0.23783252676507838,
+                                      upper = 0.3035703501218062,
+                                      ice_ipcw_estimate = NA,
+                                      ipw = 0.2693019050719549
+                                  )
+    expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
 
 test_that("test continuous time function (uncensored; competing risks)", {
@@ -880,12 +892,12 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
         baseline_covariates = c("age", "A_0", "L_0"),
         marginal_censoring = FALSE
     )
-    altered_data <- suppressWarnings(propensity_scores(
+    altered_data <- propensity_scores(
         prepared_data = prep_data,
         model_treatment = "learn_glm_logistic",
         model_hazard = "learn_coxph",
         penalize_hazard = TRUE
-    ))
+    )
 
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(

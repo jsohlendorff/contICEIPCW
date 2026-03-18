@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (18:43) 
 ## Version: 
-## Last-Updated: Mar 16 2026 (22:23) 
+## Last-Updated: Mar 17 2026 (18:49) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 30
+##     Update #: 32
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -14,7 +14,7 @@
 #----------------------------------------------------------------------
 ## 
 ### Code:
-## Estimate IPW weights in efficient influence function
+## Estimate IPW weights in efficient influence functionx
 cumulative_inverse_probability_weights <- function(data, static_intervention, time_horizon, return_ipw, last_event) {
     survival_censoring_0 <- cum_treatment_k <- cum_propensity_k <- cum_survival_censoring_k <- event_k_prev <- ipw_k <- event_k <- time_k <- survival_censoring_k <- ipw_cum_weight <- NULL
     ## Cumulative product of propensity scores (treatment)

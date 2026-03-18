@@ -11,7 +11,8 @@ prepare_data(
   baseline_covariates,
   marginal_censoring = TRUE,
   min_events = 40,
-  last_non_terminal_event = NULL
+  last_non_terminal_event = NULL,
+  verbose
 )
 }
 \arguments{
@@ -44,6 +45,8 @@ considered baseline (time-invariant) covariates. Must include treatment and time
 
 \item{last_non_terminal_event}{Optional numeric indicating the last nonterminal event number to consider
 in the outcome.}
+
+\item{verbose}{Logical; if \code{TRUE}, prints messages about data-adaptive selection of last event number.}
 }
 \description{
 Prepare data for continuous time analysis

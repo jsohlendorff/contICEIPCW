@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 16 2026 (23:12) 
+## Last-Updated: Mar 18 2026 (14:49) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 268
+##     Update #: 283
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -65,7 +65,7 @@ propensity_scores <- function(prepared_data,
                               lag = NULL,
                               static_intervention = 1,
                               verbose = FALSE) {
-    time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- A_var <- A_0 <- NULL
+    time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- A_var <- A_0 <- A_0_var <- NULL
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }
@@ -94,11 +94,12 @@ propensity_scores <- function(prepared_data,
                            .SDcols = baseline_covariates]
         ]
         marginal_censoring_fit <- hazard_fit(data = data_marginal_censoring,
-                               model_hazard = model_hazard,
-                               outcome_string = "Surv(time, event == \"C\")",
-                               covariates = censoring_covariates,
-                               formula_strategy = "additive",
-                               penalize = penalize_hazard)
+                                             model_hazard = model_hazard,
+                                             outcome_string = "Surv(time, event == \"C\")",
+                                             covariates = censoring_covariates,
+                                             formula_strategy = "additive",
+                                             penalize = penalize_hazard,
+                                             verbose = verbose)
     } else {
         marginal_censoring_fit <- NULL
     }
@@ -138,7 +139,8 @@ propensity_scores <- function(prepared_data,
                                               time_covariates = time_covariates,
                                               baseline_covariates = baseline_covariates,
                                               time_variable = paste0("time_", k),
-                                              penalize = penalize_hazard)
+                                              penalize = penalize_hazard,
+                                              verbose = verbose)
 
             } else {
                 # Ensure Cox...
@@ -177,11 +179,11 @@ propensity_scores <- function(prepared_data,
             if (all(data[event_k == "A", A_k == 1])) {
                 data[event_k == "A", paste0("propensity_",k) := 1]
             } else {
-                data[, A_var:= get(paste0("A_", k)) == static_intervention]
+                data[, paste0("A_", k, "_var") := get(paste0("A_", k)) == static_intervention]
                 data[event_k == "A", paste0("propensity_",k) := regression_fit(
                     data = .SD,
                     model_regression = model_treatment,
-                    outcome_string = "A_var",
+                    outcome_string = paste0("A_", k, "_var"),
                     covariates = NULL,
                     formula_strategy = "additive",
                     use_history_of_variables = TRUE,
@@ -190,9 +192,10 @@ propensity_scores <- function(prepared_data,
                     time_covariates = time_covariates,
                     baseline_covariates = baseline_covariates,
                     type = "propensity",
-                    penalize = penalize_treatment
+                    penalize = penalize_treatment,
+                    verbose = verbose
                 )]
-                data[, A_var := NULL]
+                data[, paste0("A_", k, "_var") := NULL]
                 ## Stop if any propensity scores are NA
                 if (data[event_k == "A", .(any(is.na(propensity_k) | propensity_k == 0)), env = list(propensity_k = paste0("propensity_", k))]$V1) {
                     stop(paste0("NA or zero values in propensity scores for event ", k, ". "))
@@ -211,20 +214,20 @@ propensity_scores <- function(prepared_data,
             baseline_covariates,
             c("A_0",names(which(vapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1)))))
         )
-        data[, A_var := A_0 == static_intervention]
+        data[, A_0_var := A_0 == static_intervention]
         data[, propensity_0 := regression_fit(
             data = .SD,
             model_regression = model_treatment,
-            outcome_string = "A_var",
+            outcome_string = "A_0_var",
             covariates = baseline_covariates,
             formula_strategy = "additive",
             use_history_of_variables = FALSE,
             time_covariates = time_covariates,
             baseline_covariates = baseline_covariates,
             type = "propensity",
-            penalize = penalize_treatment
-            )]
-        data[, A_var := NULL]
+            penalize = penalize_treatment,
+            verbose = verbose)]
+        data[, A_0_var := NULL]
         ## Check if any propensity scores are NA
         if (data[, .(any(is.na(propensity_0) | propensity_0 == 0))]$V1) {
            stop("NA or zero values in baseline propensity scores. ")

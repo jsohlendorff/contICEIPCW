@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (12:26) 
 ## Version: 
-## Last-Updated: Mar 16 2026 (23:12) 
+## Last-Updated: Mar 18 2026 (14:33) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 52
+##     Update #: 55
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -16,7 +16,7 @@
 ### Code:
 
 ## Adaptively select last event based on the data if not provided
-select_last_event <- function(timevarying_data, time_horizon, last_non_terminal_event, min_events = 40) {
+select_last_event <- function(timevarying_data, time_horizon, last_non_terminal_event, min_events, verbose) {
     time <- event <- event_number <- id <- N <- . <- NULL
     if (is.null(last_non_terminal_event)) {
         at_risk_table <- timevarying_data[time < time_horizon & event %in% c("A", "L"), .N, by = "event_number"]
@@ -26,7 +26,7 @@ select_last_event <- function(timevarying_data, time_horizon, last_non_terminal_
         } else {
             max_event_number <- max(at_risk_table$event_number)
             last_non_terminal_event <- at_risk_table[N > min_events, event_number[.N]]
-            if (last_non_terminal_event < max_event_number) {
+            if (last_non_terminal_event < max_event_number && verbose) {
                 message(
                     "Adaptively selecting last event number (N <= ", min_events, "). Event number: ",
                     last_non_terminal_event

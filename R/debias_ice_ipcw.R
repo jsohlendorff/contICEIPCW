@@ -22,7 +22,7 @@
 #' @param lag Optional numeric indicating the number of previous events included in the formulas for the models.
 #' @param verbose Logical; if \code{TRUE}, prints additional information during the execution.
 #' @param static_intervention Which intervention to consider; either 0 or 1.
-#' @param semi_tmle Whether to update the discrete part of the efficient influence function via a TMLE-step instead of one-step.
+#' @param tmle_update Whether to update the discrete part of the efficient influence function via a TMLE-step instead of one-step.
 #' @param penalize_pseudo_outcome Logical; if \code{TRUE}, applies L1-penalization to the regression for the pseudo-outcome. Default is \code{FALSE}.
 #' @param penalize_hazard Logical; if \code{TRUE}, applies L1-penalization to the regression for the hazard. Default is \code{FALSE}.
 #'
@@ -92,7 +92,7 @@ debias_ice_ipcw <- function(prepared_data,
                             grid_size = NULL,
                             lag = NULL,
                             verbose = FALSE,
-                            semi_tmle = FALSE) {
+                            tmle_update = FALSE) {
     event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- ipcw <- pseudo_outcome_unweighted <- NULL
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop("prepared_data must be an object of class 'debiased_prepared'.
@@ -121,7 +121,7 @@ debias_ice_ipcw <- function(prepared_data,
     fast_ipcw <- TRUE
     if (model_pseudo_outcome %in% c("ipcw_glm_expit", "ipcw_glm_identity")) {
         fast_ipcw <- FALSE
-        ## FIXME
+        ## FIXME -- maybe, if we even want to use this option
         if (!marginal_censoring) {
             stop("Models with IPCW with glm require marginal censoring to be assumed.")
         }
@@ -169,11 +169,12 @@ debias_ice_ipcw <- function(prepared_data,
             time_covariates = time_covariates,
             baseline_covariates = baseline_covariates,
             type = "pseudo_outcome",
-            penalize = penalize_pseudo_outcome
+            penalize = penalize_pseudo_outcome,
+            verbose = verbose
         )
         
         ## Predict q_k under the previous intervention
-        data_at_risk[, q_prediction := predict_intervention(.SD, k-1, q_reg, static_intervention)]
+        data_at_risk[, q_prediction := predict_intervention(.SD, k-1, q_reg, static_intervention, verbose)]
 
         ## Save values for next iteration
         q_prediction <- data_at_risk[, c("q_prediction", "id"), with = FALSE]
@@ -185,8 +186,8 @@ debias_ice_ipcw <- function(prepared_data,
         }
 
         if (!conservative & is_censored) {
-            if (semi_tmle) stop("semi-tmle not implemented yet for censored martingale")
-            message("conservative = FALSE on censored data. You're on shaky ground...")
+            if (tmle_update) stop("semi-tmle not implemented yet for censored martingale")
+            if (verbose) message("conservative = FALSE on censored data. You're on shaky ground...")
             ic_final <- censoring_martingale(data_marginal_censoring,
                                              data_at_risk,
                                              at_risk_interevent,
@@ -207,7 +208,7 @@ debias_ice_ipcw <- function(prepared_data,
         } else {
             ## If conservative, we do not compute the martingale terms
             ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("ipw_cum_weight", "id")], by = "id")
-            if (semi_tmle) {
+            if (tmle_update) {
                 ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
                 tryCatch({
                     epsilonhat <- estimating_equation_cpp(
@@ -221,13 +222,15 @@ debias_ice_ipcw <- function(prepared_data,
                         offset = logit(ic_final$q_prediction)
                     )[1,1]
                 }, error = function(e) {
-                    warning("Error in glm.fit for TMLE update. Setting epsilonhat to 0.")
+                    if (verbose) {
+                        message("Error in estimating equation for TMLE update: ", e$message)
+                    }
                     epsilonhat <<- 0
                 })
-                ##  # Debug
-                ##  g2 <- function(epsilon, ipw, pseudo_outcome,q_pred) {
-                ##  as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilonhat * ic_final$ipw_cum_weight)))
-                ##  }
+                ## # Debug
+                ## g2 <- function(epsilon, ipw, pseudo_outcome,q_pred) {
+                ## as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilonhat * ic_final$ipw_cum_weight)))
+                ## }
                 ## g2(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
                 q_prediction_prev <- expit(logit(ic_final$q_prediction) + epsilonhat * (ic_final$ipw_cum_weight))
                 ic_final$q_prediction <- q_prediction_prev
@@ -251,10 +254,10 @@ debias_ice_ipcw <- function(prepared_data,
         }
         data[, ipw := mean(ipw)]
     }
-    data[, pred_0 := predict_intervention(.SD, 0, q_reg, static_intervention)]
+    data[, pred_0 := predict_intervention(.SD, 0, q_reg, static_intervention, verbose)]
     data[, g_formula_estimate := mean(pred_0)]
     data[, ic := ic + pred_0 - g_formula_estimate]
-    if (!semi_tmle) {
+    if (!tmle_update) {
         data[, estimate := g_formula_estimate + mean(ic)]
         result <- data[, .(
             estimate = estimate[.N],
@@ -265,7 +268,7 @@ debias_ice_ipcw <- function(prepared_data,
             ipw = ipw[.N]
         )]
     } else {
-        message("Rerun with semi_tmle = FALSE to get 'ice_ipcw_estimate'")
+        if (verbose) message("Rerun with tmle_update = FALSE to get 'ice_ipcw_estimate'")
         result <- data[, .(
             estimate = g_formula_estimate[.N],
             se = sd(ic) / sqrt(.N),

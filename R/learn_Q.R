@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Mar 16 2026 (17:37) 
+## Last-Updated: Mar 18 2026 (14:51) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 8
+##     Update #: 18
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -29,7 +29,9 @@ learn_Q <- function(model_type,
                     outcome_name = "weight",
                     outcome_string_unweighted = NULL,
                     ipcw_name = NULL,
-                    penalize) {
+                    penalize,
+                    verbose,
+                    k) {
     
     max_weight <- max(data_learn[[outcome_name]])
     if (is.null(max_weight) || is.na(max_weight)) {
@@ -37,7 +39,6 @@ learn_Q <- function(model_type,
     }
     if (max_weight == 0) {
         predict_fun <- function(data) {
-            warning("All weights are zero. Returning a constant prediction of zero. This behavior is unproblematic if the event of interest does not occur for the k'th event for those at risk of a k'th event")
             rep(0, nrow(data))
         }
         return(predict_fun)
@@ -51,6 +52,8 @@ learn_Q <- function(model_type,
     } else {
         stop("Currently only 'additive' formula strategy is supported.")
     }
+
+    if (verbose) message("Fitting outcome regression model of type: ", model_type, " with formula: ", outcome_name, "_", k, " ~ ", history_of_variables_string)
 
     if (model_type %in% c("quasibinomial", "scaled_quasibinomial", "lm", "ipcw_glm_expit", "ipcw_glm_probit")) {
         if (grepl("quasibinomial", model_type)) {
@@ -165,31 +168,31 @@ learn_Q <- function(model_type,
            fit <- nleqslv::nleqslv(f = g, x = beta_init, X = X, Y = Y, control = list(maxit = 1000, allowSingular = TRUE))$x
        }},
        error = function(e) {
-           warning("The estimating equation solver did not converge: ", e$message)
+           if (verbose) warning("The estimating equation solver did not converge: ", e$message)
            fit <<- beta_init
        })
        
        ## Check for NAs or NULL in solution
        if (any(is.na(fit)) || any(is.null(fit))) {
-           warning("The estimating equation solver did not converge.")
+           if (verbose) warning("The estimating equation solver did not converge.")
            fit <- beta_init
        }
       
        ## Check if the solution is very large or if the estimating equation does not seem to be solved
-       if (any(abs(fit) > 1e2) ) {
+       if (any(abs(fit) > 1e2) && verbose) {
            warning("The solution of the estimating equation solver is very large.")
            message("Estimated parameters / estimating equation value: ")
            print(fit)
            print(g(fit, X, Y))
        }
-       if (any(abs(g(fit, X, Y)) > 1e-2)){
+       if (any(abs(g(fit, X, Y)) > 1e-2) && verbose){
            warning("The estimating equation does not seem to be solved which may indicate non-convergence.")
            message("Estimated parameters / estimating equation value: ")
            print(fit)
            print(g(fit, X, Y))
        }
 
-       if (any(is.na(fit))) {
+       if (any(is.na(fit)) && verbose) {
            warning("The estimating equation solver did not converge.")
            fit <- beta_init
        }

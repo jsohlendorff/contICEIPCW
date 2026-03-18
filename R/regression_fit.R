@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:42) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:42) 
+## Last-Updated: Mar 18 2026 (14:50) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 1
+##     Update #: 8
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -14,7 +14,7 @@
 #----------------------------------------------------------------------
 ## 
 ### Code:
-regression_fit <- function(data, model_regression, outcome_string, outcome_string_unweighted = NULL, ipcw_name = NULL, covariates = NULL, formula_strategy = "additive", use_history_of_variables = FALSE, lag = NULL, k = NULL, time_covariates = NULL, baseline_covariates = NULL, type = "propensity", penalize) {
+regression_fit <- function(data, model_regression, outcome_string, outcome_string_unweighted = NULL, ipcw_name = NULL, covariates = NULL, formula_strategy = "additive", use_history_of_variables = FALSE, lag = NULL, k = NULL, time_covariates = NULL, baseline_covariates = NULL, type = "propensity", penalize, verbose) {
        if (use_history_of_variables) {
            covariates <- get_history_of_variables(
                 data,
@@ -37,13 +37,16 @@ regression_fit <- function(data, model_regression, outcome_string, outcome_strin
                     outcome_name = outcome_string,
                     outcome_string_unweighted = outcome_string_unweighted,
                     ipcw_name = ipcw_name,
-                    penalize
+                    penalize = penalize,
+                    verbose = verbose,
+                    k
                 )
             } else if (type == "propensity") {
                 formula_propensity <- paste0(
                     outcome_string, " ~ ",
                     paste(covariates, collapse = "+")
                 )
+                if (verbose) message("Fitting propensity score model with formula: ", formula_propensity)
                 do.call(model_regression, list(character_formula = formula_propensity, data = data, penalize = penalize))
             } else {
                 stop("Unsupported regression type: ", type)
@@ -53,7 +56,7 @@ regression_fit <- function(data, model_regression, outcome_string, outcome_strin
             stop("Error in fitting regression model: ", e, "with outcome: ", outcome_string, " and covariates: ", paste(covariates, collapse = ", "), " and type: ", type)
         },
         warning = function(w) {
-            message("Warning in fitting regression model: ", w, "with outcome: ", outcome_string, " and covariates: ", paste(covariates, collapse = ", "), " and type: ", type)
+            if (verbose) message("Warning in fitting regression model: ", w, "with outcome: ", outcome_string, " and covariates: ", paste(covariates, collapse = ", "), " and type: ", type)
         }
         )
 }

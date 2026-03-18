@@ -19,7 +19,7 @@ debias_ice_ipcw(
   grid_size = NULL,
   lag = NULL,
   verbose = FALSE,
-  semi_tmle = FALSE
+  tmle_update = FALSE
 )
 }
 \arguments{
@@ -58,7 +58,7 @@ Default is \code{TRUE}.}
 
 \item{verbose}{Logical; if \code{TRUE}, prints additional information during the execution.}
 
-\item{semi_tmle}{Whether to update the discrete part of the efficient influence function via a TMLE-step instead of one-step.}
+\item{tmle_update}{Whether to update the discrete part of the efficient influence function via a TMLE-step instead of one-step.}
 }
 \value{
 A named vector containing the following elements:
