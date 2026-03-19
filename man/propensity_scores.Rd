@@ -12,6 +12,7 @@ propensity_scores(
   penalize_hazard = FALSE,
   lag = NULL,
   static_intervention = 1,
+  exclude_latest_covariate = NULL,
   verbose = FALSE
 )
 }
@@ -31,6 +32,8 @@ Options include \code{"learn_coxph"} (Cox proportional hazards model).}
 \item{lag}{Optional numeric indicating the number of previous events included in the formulas for the models.}
 
 \item{static_intervention}{Numeric value indicating the treatment level for the static intervention (default is 1).}
+
+\item{exclude_latest_covariate}{Optional character vector of covariate names to exclude the latest value of in the propensity score models.}
 
 \item{verbose}{Logical; if \code{TRUE}, prints additional information during model fitting.}
 }

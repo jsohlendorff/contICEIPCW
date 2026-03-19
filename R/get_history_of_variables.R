@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:51) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:51) 
+## Last-Updated: Mar 19 2026 (10:12) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 1
+##     Update #: 15
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -20,7 +20,8 @@ get_history_of_variables <- function(data,
                                      baseline_covariates,
                                      type,
                                      lag,
-                                     k) {
+                                     k,
+                                     exclude_latest_covariate) {
     if (!is.null(lag) && k > 1) {
         event_points <- seq(from = max(1, k - lag), to = k - 1, by = 1)
     } else {
@@ -38,24 +39,22 @@ get_history_of_variables <- function(data,
     if (type == "hazard") {
         time_history <- setdiff(time_history, paste0("time_", k - 1))
     } else if (type == "propensity") {
-        ## Allow for A and L to occur at the same time
-        time_history <- c(time_history, paste0("time_", k), paste0(setdiff(time_covariates, "A"), "_", k))
+        time_covariates <- c("time", time_covariates)
+        if (is.null(exclude_latest_covariate)) {
+            time_history <- c(time_history, paste0(setdiff(time_covariates, "A"), "_", k))
+        } else {
+            time_history <- c(time_history, paste0(setdiff(time_covariates, c("A", exclude_latest_covariate)), "_", k))
+        }
     } else if (type == "martingale") {
         time_history <- setdiff(time_history, paste0(setdiff(time_covariates, "A"), "_", k - 1))
     }
 
     ## Full history of variables, i.e., covariates used in regressions
     history_of_variables <- c(time_history, baseline_covariates)
-
-    ## Remove variables from history_of_variables that do not have more than one value
-    ## in the data
-    if (!type == "martingale") {
-        history_of_variables <- setdiff(
+    setdiff(
             history_of_variables,
-            names(which(vapply(data[, .SD, .SDcols = history_of_variables], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1))))
-        )
-    }
-    history_of_variables
+        names(which(vapply(data[, .SD, .SDcols = history_of_variables], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1))))
+    )
 }
 
 ######################################################################

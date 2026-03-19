@@ -919,3 +919,54 @@ test_that("test continuous time function (censored; competing events; ipcw_glm_e
                                   )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
+
+test_that("test continuous time function (exclude variable)", {
+    library(survival)
+    library(data.table)
+    library(riskRegression)
+
+    set.seed(34)
+    # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = FALSE,
+        uncensored = FALSE
+    )
+
+    set.seed(65)
+    prep_data <- prepare_data(
+        data = data_continuous,
+        max_time_horizon = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph",
+        penalize_hazard = FALSE,
+        verbose = TRUE,
+        exclude_latest_covariate = "time"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        time_horizon = 720,
+        model_pseudo_outcome = "oipcw_expit",
+        model_hazard = "learn_coxph",
+        conservative = TRUE,
+        verbose = FALSE
+    )
+
+    correct_result <- data.table::data.table(
+                                      estimate = 0.28445004193932516,
+                                      se = 0.016750137304035392,
+                                      lower = 0.2516197728234158,
+                                      upper = 0.3172803110552345,
+                                      ice_ipcw_estimate = 0.284662875273469,
+                                      ipw = 0.28368580294914786
+                                  )
+    expect_true(all.equal(result, correct_result, tolerance = 1e-8))
+})

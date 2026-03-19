@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:42) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (14:50) 
+## Last-Updated: Mar 19 2026 (10:06) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 8
+##     Update #: 13
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -14,15 +14,31 @@
 #----------------------------------------------------------------------
 ## 
 ### Code:
-regression_fit <- function(data, model_regression, outcome_string, outcome_string_unweighted = NULL, ipcw_name = NULL, covariates = NULL, formula_strategy = "additive", use_history_of_variables = FALSE, lag = NULL, k = NULL, time_covariates = NULL, baseline_covariates = NULL, type = "propensity", penalize, verbose) {
+regression_fit <- function(data,
+                           model_regression,
+                           outcome_string,
+                           outcome_string_unweighted = NULL,
+                           ipcw_name = NULL,
+                           covariates = NULL,
+                           formula_strategy = "additive",
+                           use_history_of_variables = FALSE,
+                           lag = NULL,
+                           k = NULL,
+                           time_covariates = NULL,
+                           baseline_covariates = NULL,
+                           type = "propensity",
+                           penalize,
+                           exclude_latest_covariate,
+                           verbose) {
        if (use_history_of_variables) {
            covariates <- get_history_of_variables(
-                data,
+                data = data,
                 time_covariates,
                 baseline_covariates,
                 type = type,
                 lag = lag,
-                k = k
+                k = k,
+                exclude_latest_covariate = exclude_latest_covariate
             )
        }
        

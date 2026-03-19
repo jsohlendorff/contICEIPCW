@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (14:49) 
+## Last-Updated: Mar 19 2026 (10:05) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 283
+##     Update #: 291
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -26,6 +26,7 @@
 #' @param penalize_treatment Logical; if \code{TRUE}, applies L1 regularization to the treatment propensity score model.
 #' @param penalize_hazard Logical; if \code{TRUE}, applies L1 regularization to the hazard model.
 #' @param static_intervention Numeric value indicating the treatment level for the static intervention (default is 1).
+#' @param exclude_latest_covariate Optional character vector of covariate names to exclude the latest value of in the propensity score models.
 #'
 #' @export
 #' @examples
@@ -64,6 +65,7 @@ propensity_scores <- function(prepared_data,
                               penalize_hazard = FALSE,
                               lag = NULL,
                               static_intervention = 1,
+                              exclude_latest_covariate = NULL,
                               verbose = FALSE) {
     time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- A_var <- A_0 <- A_0_var <- NULL
     if (!inherits(prepared_data, "prepare_data_continuous")) {
@@ -193,6 +195,7 @@ propensity_scores <- function(prepared_data,
                     baseline_covariates = baseline_covariates,
                     type = "propensity",
                     penalize = penalize_treatment,
+                    exclude_latest_covariate = exclude_latest_covariate,
                     verbose = verbose
                 )]
                 data[, paste0("A_", k, "_var") := NULL]
@@ -226,6 +229,7 @@ propensity_scores <- function(prepared_data,
             baseline_covariates = baseline_covariates,
             type = "propensity",
             penalize = penalize_treatment,
+            exclude_latest_covariate = exclude_latest_covariate,
             verbose = verbose)]
         data[, A_0_var := NULL]
         ## Check if any propensity scores are NA
