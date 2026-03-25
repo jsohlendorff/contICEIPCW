@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (22:54) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (13:06) 
+## Last-Updated: Mar 25 2026 (14:44) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 68
+##     Update #: 70
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -48,7 +48,11 @@ ipcw_k <- function(data, k, marginal_censoring_fit, time_horizon, is_censored, f
 
         dt <- rbind(data_use, data_time_horizon)
 
-        data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit, dt, data_use, time_ref = "time_prev")
+        data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit,
+                                          dt,
+                                          data_use,
+                                          time_ref = "time_prev",
+                                          baseline_hazard = marginal_censoring_fit$baseline_hazard)
         data_tau <- data_use[type == "Gtau"]
         set(
             data_tau,

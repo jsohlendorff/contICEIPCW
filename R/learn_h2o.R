@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (19:06) 
+## Last-Updated: Mar 25 2026 (14:33) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 2
+##     Update #: 3
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -45,7 +45,7 @@ learn_h2o <- function(character_formula,
     distribution <- "AUTO"
   }
 
-  if (!verbose) sink("/dev/null") # Suppress H2O output
+  if (!verbose) { sink("/dev/null"); on.exit(sink(), add = TRUE) }
   suppressWarnings({
     h2o::h2o.init()
   })

@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (13:05) 
+## Last-Updated: Mar 25 2026 (14:51) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 517
+##     Update #: 527
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -161,7 +161,6 @@ censoring_martingale <- function(data_censoring,
                                 NULL
                             )
                         )
-
             ## pseudo_outcome_u
             set(
                 dt,
@@ -276,9 +275,11 @@ censoring_martingale <- function(data_censoring,
         value = preds_surv$time - preds_surv$time_k_prev)
 
     preds_surv <- cumulative_hazard_cox(
-        surv_fit$fit,
-        preds_surv,
-        at_risk_interevent
+        fit = surv_fit$fit,
+        data = preds_surv,
+        covariate_data = at_risk_interevent,
+        time_ref = NULL,
+        baseline_hazard = surv_fit$baseline_hazard
     )
 
     set(preds_surv, j = "surv", value = exp(-preds_surv$Lambda_minus))
@@ -305,10 +306,11 @@ censoring_martingale <- function(data_censoring,
     ]
 
     preds <- cumulative_hazard_cox(
-        marginal_censoring_fit$fit,
-        preds,
-        data_censoring[, !"time"],
-        time_ref = time_k_prev
+        fit = marginal_censoring_fit$fit,
+        data = preds,
+        covariate_data = data_censoring[, !"time"],
+        time_ref = time_k_prev,
+        baseline_hazard = marginal_censoring_fit$baseline_hazard
     )
 
     setnames(preds,

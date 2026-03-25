@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (16:29) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (13:06) 
+## Last-Updated: Mar 25 2026 (14:50) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 120
+##     Update #: 128
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -15,14 +15,17 @@
 ## 
 ### Code:
 
-cumulative_hazard_cox <- function(fit, data, covariate_data, time_variable = "time",  time_ref = NULL){
-    fit$coefficients[is.na(fit$coefficients)] <- 0 ## Force Brice's functions to behave
+cumulative_hazard_cox <- function(fit, data, covariate_data, time_variable = "time",  time_ref = NULL, baseline_hazard = NULL) {
     ## Find exp(LP); i.e., exponential of linear predictor
     exp_lp_dt <- data.table(id = covariate_data$id)
     data.table::set(exp_lp_dt, j = "exp_lp", value = exp(riskRegression::coxLP(fit,data = covariate_data,center = FALSE)))
 
     ## Baseline cumulative hazard Lambda_0^x (T_j) for all j
-    base_hazard <- riskRegression::predictCox(fit,centered = FALSE, type = "cumhazard")
+    if (is.null(baseline_hazard)) {
+        base_hazard <- riskRegression::predictCox(fit, centered = FALSE, type = "cumhazard")
+    } else {
+        base_hazard <- baseline_hazard
+    }
     base_hazard <- data.table(hazard = base_hazard$cumhazard, time = base_hazard$time)
     setnames(base_hazard, "time", time_variable)
     N <- nrow(base_hazard)

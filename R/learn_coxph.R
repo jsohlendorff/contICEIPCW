@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:50) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (13:07) 
+## Last-Updated: Mar 25 2026 (14:47) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 2
+##     Update #: 6
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -28,7 +28,9 @@ learn_coxph <- function(character_formula,
         ## use glmnet
         fit<-riskRegression::GLMnet(formula_cox, data = data, family = "cox", alpha = 1)
     }
-    list(pred = exp(-cumulative_hazard_cox(fit, data, data, time_variable, NULL)$Lambda_minus), fit = fit)
+    fit$coefficients[is.na(fit$coefficients)] <- 0
+    base_hazard <- riskRegression::predictCox(fit, centered = FALSE, type = "cumhazard")
+    list(pred = exp(-cumulative_hazard_cox(fit, data, data, time_variable, NULL, base_hazard)$Lambda_minus), fit = fit, baseline_hazard = base_hazard)
 }
 
 ######################################################################
