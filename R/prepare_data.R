@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (19:33) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (11:59) 
+## Last-Updated: Mar 25 2026 (13:03) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 94
+##     Update #: 96
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -95,7 +95,11 @@ prepare_data <- function(data,
                                             marginal_censoring)
     is_censored <- censoring_info_result$is_censored
     data_marginal_censoring <- censoring_info_result$data_marginal_censoring
-    info[, is_censored := unlist(is_censored)]
+    set(
+        info,
+        j = "is_censored",
+        value = unlist(is_censored)
+    )
     ## Convert the data from long format to wide format
     wide_data <- widen_continuous_data(timevarying_data,
                                        baseline_data,

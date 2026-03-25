@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:50) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (14:33) 
+## Last-Updated: Mar 25 2026 (12:55) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 3
+##     Update #: 8
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -20,9 +20,19 @@ predict_intervention <- function(data, k, predict_fun, static_intervention, verb
   event_k <- A_0 <- event_k_intervention <- NULL
   intervened_data <- copy(data)
   if (k > 0) {
-    intervened_data[event_k_intervention == "A", paste0("A_", k) := static_intervention, env = list(event_k_intervention = paste0("event_", k))]
+    which_event_A <- which(intervened_data[[paste0("event_", k)]] == "A")
+      set(
+          intervened_data,
+          i = which_event_A,
+            j = paste0("A_", k),
+            value = static_intervention
+        )
   } else {
-    intervened_data[, A_0 := static_intervention]
+      set(
+            intervened_data,
+            j = "A_0",
+            value = static_intervention
+      )
   }
   f <- predict_fun(intervened_data)
 

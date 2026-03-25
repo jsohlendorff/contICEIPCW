@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (22:54) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:43) 
+## Last-Updated: Mar 25 2026 (13:02) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 45
+##     Update #: 67
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -26,20 +26,43 @@ ipcw_k <- function(data, k, marginal_censoring_fit, time_horizon, is_censored, f
         Gminus <- Gtau <- rep(1, nrow(data))
     } else if (!fast_ipcw) {
         data_use <- data[event_k_prev %in% c("A", "L")]
-        
-        data_use[, c("time", "time_prev") := list(time_k, time_k_prev)]
-        data_use[, type := "Gminus"]
+        set(
+            data_use,
+            j = c("time", "time_prev"),
+            value = list(
+                data_use[[paste0("time_", k)]],
+                data_use[[paste0("time_", k - 1)]]
+            )
+        )
+        set(
+            data_use,
+            j = "type",
+            value = "Gminus"
+        )
+
         data_time_horizon <- copy(data_use)
-        data_time_horizon[, type := "Gtau"]
-        data_time_horizon[,time := time_horizon]
+        set(
+            data_time_horizon,
+            j = c("type","time"),
+            value = list("Gtau", time_horizon)
+        )
+
         dt <- rbind(data_use, data_time_horizon)
 
         data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit, dt, data_use, time_ref = "time_prev")
         data_tau <- data_use[type == "Gtau"]
-        data_tau[, Gtau := exp(-Lambda)]
+        set(
+            data_tau,
+            j = "Gtau",
+            value = exp(-data_tau$Lambda)
+        )
 
         data_minus <- data_use[type == "Gminus"]
-        data_minus[, Gminus := exp(-Lambda_minus)]
+        set(
+            data_minus,
+            j = "Gminus",
+            value = exp(-data_minus$Lambda_minus)
+        )
         Gminus <- data_minus$Gminus
         Gtau <- data_tau$Gtau
     }

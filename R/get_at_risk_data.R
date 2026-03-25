@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:52) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:52) 
+## Last-Updated: Mar 25 2026 (12:56) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 1
+##     Update #: 9
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -21,12 +21,16 @@ get_at_risk_data <- function(data,
     event_k_previous <- time_previous <- time_k <- time_k_prev_1 <- time_j <- event_j <- event_k <- time_k_prev <- event_k_prev <- NULL
     
     ## Create shortcuts for the k'th iteration
-    data[, c("event_k", "time_k", "time_k_prev", "event_k_prev")
-         := list(event_k, time_k, time_k_prev, event_k_prev),
-         env = list(event_k = paste0("event_", k),
-                    time_k = paste0("time_", k),
-                    event_k_prev = paste0("event_", k - 1),
-                    time_k_prev = paste0("time_", k - 1))]
+    set(
+        data,
+        j = c("event_k", "time_k", "time_k_prev", "event_k_prev"),
+        value = list(
+            data[[paste0("event_", k)]],
+            data[[paste0("time_", k)]],
+            data[[paste0("time_", k - 1)]],
+            data[[paste0("event_", k - 1)]]
+        )
+    )
 
     ## Remove unused factor levels
     if (k == 1) {
@@ -42,12 +46,22 @@ get_at_risk_data <- function(data,
         }
         
         ## Shift the interevent times according to time_(k-1); makes modeling more natural
-        at_risk_interevent[, paste0("time_", k) := time_k - time_k_prev]
+        set(
+            at_risk_interevent,
+            j = paste0("time_", k),
+            value = at_risk_interevent[["time_k"]] - at_risk_interevent[["time_k_prev"]]
+        )
         for (j in seq_len(k - 1)) {
-            at_risk_interevent[, paste0("time_", j) := time_k_prev - time_j,
-                               env = list(time_j = paste0("time_", j))]
-            at_risk_interevent[, paste0("event_", j) := droplevels(event_j),
-                               env = list(event_j = paste0("event_", j))]
+            set(
+                at_risk_interevent,
+                j = paste0("time_", j),
+                value =  at_risk_interevent[["time_k_prev"]] - at_risk_interevent[[paste0("time_", j)]]
+            )
+            set(
+                at_risk_interevent,
+                j = paste0("event_", j),
+                value = droplevels(at_risk_interevent[[paste0("event_", j)]])
+            )
         }
     }
     at_risk_interevent[, (names(.SD)) := lapply(.SD, droplevels), 
