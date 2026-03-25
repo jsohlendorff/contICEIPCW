@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (14:15) 
 ## Version: 
-## Last-Updated: Mar  4 2026 (19:42) 
+## Last-Updated: Mar 24 2026 (14:05) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 17
+##     Update #: 24
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -14,12 +14,12 @@
 #----------------------------------------------------------------------
 ## 
 ### Code:
-censoring_info <- function(timevarying_data, baseline_data, time_horizon, marginal_censoring) {
+censoring_info <- function(timevarying_data, baseline_data, time_horizons, marginal_censoring) {
     event<-time<-NULL
-    is_censored <- timevarying_data[event == "C" & time < time_horizon, .N] > 0
-
+    is_censored <- lapply(time_horizons, function(x) timevarying_data[event == "C" & time < x, .N] > 0)
+    
     ## If marginal_censoring is TRUE, get data with time-varying covariates
-    if (marginal_censoring) {
+    if (marginal_censoring && any(unlist(is_censored))) {
         data_marginal_censoring <- merge(timevarying_data[event %in% c("tauend", "C", "Y", "D")],
                                 baseline_data,
                                 by = "id",

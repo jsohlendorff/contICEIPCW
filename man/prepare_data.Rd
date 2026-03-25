@@ -6,13 +6,13 @@
 \usage{
 prepare_data(
   data,
-  max_time_horizon,
+  time_horizons,
   time_covariates,
   baseline_covariates,
   marginal_censoring = TRUE,
   min_events = 40,
   last_non_terminal_event = NULL,
-  verbose
+  verbose = FALSE
 )
 }
 \arguments{
@@ -31,7 +31,7 @@ Note that \code{A}, \code{L}, \code{C}, \code{Y}, and \code{D} are the event typ
 \code{Y} (event of interest), \code{D} (competing event), \code{A} (visiting event), \code{L} (covariate event),
 \code{C} (censoring event).}
 
-\item{max_time_horizon}{A numeric value representing the maximum time horizon considered for the analysis.}
+\item{time_horizons}{A numeric value representing the maximum time horizon considered for the analysis.}
 
 \item{time_covariates}{A character vector of column names in \code{data} that are
 treated as time-varying covariates. Must include values of time-varying covariates at baseline.}
@@ -67,7 +67,7 @@ data_continuous <- simulate_continuous_time_data(
 )
 prep_data <- prepare_data(
  data = data_continuous,
- max_time_horizon = 720,
+ time_horizons = 720,
 time_covariates = c("A", "L"),
 baseline_covariates = c("age", "A_0", "L_0"),
 marginal_censoring = TRUE

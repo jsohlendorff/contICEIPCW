@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 19 2026 (10:05) 
+## Last-Updated: Mar 25 2026 (09:44) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 291
+##     Update #: 395
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -45,7 +45,7 @@
 #' )
 #' prep_data <- prepare_data(
 #'  data = data_continuous,
-#'  max_time_horizon = 720,
+#'  time_horizons = 720,
 #' time_covariates = c("A", "L"),
 #' baseline_covariates = c("age", "A_0", "L_0"),
 #' marginal_censoring = TRUE
@@ -58,7 +58,7 @@
 #' )
 #' 
 ## Function for getting the propensity scores (treatment) and censoring models
-propensity_scores <- function(prepared_data, 
+propensity_scores <- function(prepared_data,
                               model_treatment,
                               penalize_treatment = FALSE,
                               model_hazard,
@@ -67,125 +67,245 @@ propensity_scores <- function(prepared_data,
                               static_intervention = 1,
                               exclude_latest_covariate = NULL,
                               verbose = FALSE) {
-    time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- A_var <- A_0 <- A_0_var <- NULL
+
+    time_v <- time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- 
+        survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <-
+        ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <-
+        g_formula_estimate <- . <- A_var <- A_0 <- A_0_var <- NULL
+
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }
-    data <- prepared_data$wide_data
-    is_censored <- prepared_data$is_censored
+
+    data <- prepared_data$wide_data    
     data_marginal_censoring <- prepared_data$data_marginal_censoring
-    last_event <- prepared_data$last_event
-    marginal_censoring <- prepared_data$marginal_censoring
+    info <- prepared_data$info
     time_covariates <- prepared_data$time_covariates
     baseline_covariates <- prepared_data$baseline_covariates
-    
+    marginal_censoring <- prepared_data$marginal_censoring
+
     ## Check user input if censored
-    if (is_censored && is.null(model_hazard)) {
-        stop(
-            "Censoring is present, but no censoring model is provided.
-             Please provide a censoring model such as `model_hazard = 'learn_coxph'`."
-        )
+    if (any(info$is_censored) && is.null(model_hazard)) {
+        stop("Censoring is present, but no censoring model is provided.")
     }
 
-    hazard_minus <- hazard <- event_k <- time_0  <- exp_lp <- surv <- id <- event_k_prev <- survival_censoring_k <- A_k <- propensity_k <- propensity_0 <- NULL
+    hazard_minus <- hazard <- event_k <- time_0 <- exp_lp <- surv <- id <- 
+        event_k_prev <- survival_censoring_k <- A_k <- propensity_k <- 
+        propensity_0 <- NULL
+
     ## Handle marginal censoring
-    if (is_censored && marginal_censoring) {
+    if (any(info$is_censored) && marginal_censoring) {
+
         ## Remove constant variables
-        censoring_covariates <- baseline_covariates[
-            data_marginal_censoring[, vapply(.SD, function(x) length(unique(x)) > 1, logical(1)),
-                           .SDcols = baseline_covariates]
-        ]
-        marginal_censoring_fit <- hazard_fit(data = data_marginal_censoring,
-                                             model_hazard = model_hazard,
-                                             outcome_string = "Surv(time, event == \"C\")",
-                                             covariates = censoring_covariates,
-                                             formula_strategy = "additive",
-                                             penalize = penalize_hazard,
-                                             verbose = verbose)
+        constant_vars <- vapply(
+            data_marginal_censoring[, ..baseline_covariates],
+            function(x) length(unique(x)) > 1,
+            logical(1)
+        )
+        censoring_covariates <- baseline_covariates[constant_vars]
+
+        marginal_censoring_fit <- hazard_fit(
+            data = data_marginal_censoring,
+            model_hazard = model_hazard,
+            outcome_string = "Surv(time, event == \"C\")",
+            covariates = censoring_covariates,
+            formula_strategy = "additive",
+            penalize = penalize_hazard,
+            verbose = verbose
+        )
     } else {
         marginal_censoring_fit <- NULL
     }
-    ## Unused for now but maybe useful for future extensions
-    ## to conservative=FALSE
-    ## censoring_models <- list()
-    for (k in rev(seq_len(last_event))) {
-         ## Create shortcuts for the k'th iteration
-         data[, c("event_k", "time_k", "time_k_prev", "event_k_prev", "A_k")
-         := list(event_k, time_k, time_k_prev, event_k_prev, A_k),
-         env = list(event_k = paste0("event_", k),
-                    time_k = paste0("time_", k),
-                    event_k_prev = paste0("event_", k - 1),
-                    time_k_prev = paste0("time_", k - 1),
-                    A_k = paste0("A_", k))]
-        
-        ## Find those at risk of the k'th event; subset data (i.e., people who have not died before the k'th event)
-        ## NOTE: For the treatment propensity score, we do not consider
-        ## the interarrival times
+
+    is_censored_max <- any(info$is_censored)
+    last_event <- max(info$last_event)
+    unique_last_events <- unique(info$last_event)
+
+    ############################################################################
+    ## MAIN LOOP OVER EVENTS k
+    ############################################################################
+    for (k in rev(seq_len(last_event))) {        
+        cols <- c("event_k", "time_k", "time_k_prev", "event_k_prev", "A_k")
+        vals <- list(
+            data[[paste0("event_", k)]],
+            data[[paste0("time_", k)]],
+            data[[paste0("time_", k - 1)]],
+            data[[paste0("event_", k - 1)]],
+            data[[paste0("A_", k)]]
+        )
+
+        for (j in seq_along(cols)) {
+            set(data, j = cols[j], value = vals[[j]])
+        }
+
+        ## Determine risk set
         data_at_risk <- get_at_risk_data(data, k)
         at_risk_interevent <- data_at_risk$at_risk_interevent
-        if (is.null(at_risk_interevent)) {
-            next
-        }
+        if (is.null(at_risk_interevent)) next
 
-        ## Fit censoring model if there is censoring
-        if (is_censored) {
-            if (!marginal_censoring) {
-                learn_censoring <- hazard_fit(data = at_risk_interevent,
-                                              model_hazard = model_hazard,
-                                              outcome_string = paste0("Surv(time_",k,", event_",k," == \"C\")"),
-                                              covariates = NULL,
-                                              formula_strategy = "additive",
-                                              use_history_of_variables = TRUE,
-                                              lag = lag,
-                                              k = k,
-                                              time_covariates = time_covariates,
-                                              baseline_covariates = baseline_covariates,
-                                              time_variable = paste0("time_", k),
-                                              penalize = penalize_hazard,
-                                              verbose = verbose)
+        ########################################################################
+        ## CENSORING MODEL
+        ########################################################################
+        if (is_censored_max) {
 
-            } else {
-                # Ensure Cox...
-                # Have to compute Lambda^c (T_(k,i)- | F_(k-1,i)).
-                if (!inherits(marginal_censoring_fit$fit, "coxph")) {
-                    stop("Censoring model must be a Cox proportional hazards model when marginal_censoring is TRUE (for now).")
-                }
+            censoring_wrapper <- function(data2,
+                                          at_risk_interevent,
+                                          model_hazard,
+                                          outcome_string,
+                                          covariates,
+                                          formula_strategy,
+                                          use_history_of_variables,
+                                          lag,
+                                          k,
+                                          time_covariates,
+                                          baseline_covariates,
+                                          penalize,
+                                          verbose,
+                                          time_variable,
+                                          event_variable) {
 
-                data_use <- data[event_k_prev %in% c("A", "L")]
-                data_use[, c("time", "time_prev") := list(time_k, time_k_prev)]
+                if (!marginal_censoring) {
 
-                data_use <- cumulative_hazard_cox(marginal_censoring_fit$fit, data_use, data_use, time_ref = "time_prev")
-                learn_censoring <- list(
-                    pred = exp(-data_use$Lambda_minus)
-                )
-                ## Check that no pred is 0 or NA
-                if (any(is.na(learn_censoring$pred)) || any(learn_censoring$pred == 0)) {
-                    stop(paste0("NA or zero values for IPCW"))
+                    learn_censoring <- hazard_fit(
+                        data = at_risk_interevent,
+                        model_hazard = model_hazard,
+                        outcome_string = paste0("Surv(", time_variable, "_", k,
+                                                ", ", event_variable, "_", k,
+                                                " == \"C\")"),
+                        covariates = NULL,
+                        formula_strategy = "additive",
+                        use_history_of_variables = TRUE,
+                        lag = lag,
+                        k = k,
+                        time_covariates = time_covariates,
+                        baseline_covariates = baseline_covariates,
+                        time_variable = paste0(time_variable, "_", k),
+                        penalize = penalize_hazard,
+                        verbose = verbose
+                    )
+                    learn_censoring$pred
+
+                } else {
+
+                    if (!inherits(marginal_censoring_fit$fit, "coxph")) {
+                        stop("Censoring model must be Cox when marginal_censoring=TRUE.")
+                    }
+
+                    data_use <- data2[data2$event_k_prev %in% c("A","L")]
+
+                    set(data_use, j = "time",
+                        value = data_use[[paste0(time_variable, "_", k)]])
+                    set(data_use, j = "time_prev",
+                        value = data_use[[paste0("time_", k - 1)]])
+
+                    data_use2 <- cumulative_hazard_cox(
+                        marginal_censoring_fit$fit,
+                        data_use,
+                        data_use,
+                        time_ref = "time_prev"
+                    )
+
+                    pred <- exp(-data_use2$Lambda_minus)
+
+                    if (any(is.na(pred)) || any(pred == 0)) {
+                        stop("NA or zero values for IPCW.")
+                    }
+
+                    pred
                 }
             }
+
+            pred <- censoring_wrapper(
+                at_risk_interevent = at_risk_interevent,
+                data2 = data,
+                model_hazard = model_hazard,
+                outcome_string = NULL,
+                covariates = NULL,
+                formula_strategy = "additive",
+                use_history_of_variables = TRUE,
+                lag = lag,
+                k = k,
+                time_covariates = time_covariates,
+                baseline_covariates = baseline_covariates,
+                penalize = penalize_hazard,
+                verbose = verbose,
+                time_variable = "time",
+                event_variable = "event"
+            )
+
+            colname <- paste0("survival_censoring_", k)
+
             if (k > 1) {
-                data[event_k_prev %in% c("A", "L"),
-                     paste0("survival_censoring_", k) := learn_censoring$pred]
+                rows <- which(data$event_k_prev %in% c("A","L"))
+                set(data, i = rows, j = colname, value = pred)
             } else {
-                data[, paste0("survival_censoring_", k) := learn_censoring$pred]
+                set(data, j = colname, value = pred)
             }
-            ## Currently unused.
-            ## censoring_models[[k]] <- learn_censoring$fit
+
+            ## Pooled censoring for unique last events
+            if (k %in% unique_last_events) {
+                pooled_col <- paste0("survival_censoring_pooled_", k)
+                if (k < last_event) {
+                    pred2 <- censoring_wrapper(
+                        at_risk_interevent = at_risk_interevent,
+                        data2 = data,
+                        model_hazard = model_hazard,
+                        outcome_string = NULL,
+                        covariates = NULL,
+                        formula_strategy = "additive",
+                        use_history_of_variables = TRUE,
+                        lag = lag,
+                        k = k,
+                        time_covariates = time_covariates,
+                        baseline_covariates = baseline_covariates,
+                        penalize = penalize_hazard,
+                        verbose = verbose,
+                        time_variable = "time_pooled",
+                        event_variable = "event_pooled"
+                    )
+
+                    if (k > 1) {
+                        rows <- which(data$event_k_prev %in% c("A","L"))
+                        set(data, i = rows, j = pooled_col, value = pred2)
+                    } else {
+                        set(data, j = pooled_col, value = pred2)
+                    }
+                } else {
+                    basecol <- paste0("survival_censoring_", k)
+                    set(data, j = pooled_col, value = data[[basecol]])
+                }
+            }
+
         } else {
-            data[, paste0("survival_censoring_", k) := 1]
+            if (k %in% unique_last_events) {
+                set(data, j = paste0("survival_censoring_pooled_", k), value = 1)
+            }
+            set(data, j = paste0("survival_censoring_", k), value = 1)
         }
 
-        ## Fit propensity score (treatment) model
+        ########################################################################
+        ## PROPENSITY MODEL FOR A_k (treatment)
+        ########################################################################
         if (k < last_event) {
-            ## check whether all values of A are 1; if so put propensity to 1
-            if (all(data[event_k == "A", A_k == 1])) {
-                data[event_k == "A", paste0("propensity_",k) := 1]
+
+            A_k_col <- paste0("A_", k)
+            pcol <- paste0("propensity_", k)
+            rowsA <- which(data$event_k == "A")
+
+            if (all(data[rowsA][[A_k_col]] == 1)) {
+
+                set(data, i = rowsA, j = pcol, value = 1)
+
             } else {
-                data[, paste0("A_", k, "_var") := get(paste0("A_", k)) == static_intervention]
-                data[event_k == "A", paste0("propensity_",k) := regression_fit(
-                    data = .SD,
+
+                varcol <- paste0("A_", k, "_var")
+                set(data, j = varcol,
+                    value = data[[A_k_col]] == static_intervention)
+
+                preds <- regression_fit(
+                    data = data[rowsA],
                     model_regression = model_treatment,
-                    outcome_string = paste0("A_", k, "_var"),
+                    outcome_string = varcol,
                     covariates = NULL,
                     formula_strategy = "additive",
                     use_history_of_variables = TRUE,
@@ -197,55 +317,76 @@ propensity_scores <- function(prepared_data,
                     penalize = penalize_treatment,
                     exclude_latest_covariate = exclude_latest_covariate,
                     verbose = verbose
-                )]
-                data[, paste0("A_", k, "_var") := NULL]
-                ## Stop if any propensity scores are NA
-                if (data[event_k == "A", .(any(is.na(propensity_k) | propensity_k == 0)), env = list(propensity_k = paste0("propensity_", k))]$V1) {
-                    stop(paste0("NA or zero values in propensity scores for event ", k, ". "))
+                )
+
+                set(data, i = rowsA, j = pcol, value = preds)
+
+                set(data, j = varcol, value = NULL)
+
+                if (any(is.na(data[rowsA][[pcol]]) |
+                        data[rowsA][[pcol]] == 0)) {
+                    stop("NA or zero values in propensity scores for event ", k)
                 }
             }
         }
-    }
-    ## check whether all values of A_0 are 1; if so put propensity to 1
+    }  ## end loop over k
+
+    ############################################################################
+    ## BASELINE TREATMENT MODEL A_0
+    ############################################################################
     if (all(data$A_0 == 1)) {
-        data[, propensity_0 := 1]
+
+        set(data, j = "propensity_0", value = 1)
+
     } else {
-        ## Baseline propensity model
-        ## Fit the baseline treatment propensity model
-        ## check whethe any baseline covariates should be deleted
-        baseline_covariates <- setdiff(
-            baseline_covariates,
-            c("A_0",names(which(vapply(data[, .SD, .SDcols = baseline_covariates], function(x) length(unique(x)) <= 1, FUN.VALUE = logical(1)))))
+
+        keep <- !vapply(
+            data[, ..baseline_covariates],
+            function(x) length(unique(x)) <= 1,
+            logical(1)
         )
-        data[, A_0_var := A_0 == static_intervention]
-        data[, propensity_0 := regression_fit(
-            data = .SD,
+        baseline_covariates2 <- baseline_covariates[keep]
+
+        set(data, j = "A_0_var", value = data$A_0 == static_intervention)
+
+        preds0 <- regression_fit(
+            data = data,
             model_regression = model_treatment,
             outcome_string = "A_0_var",
-            covariates = baseline_covariates,
+            covariates = baseline_covariates2,
             formula_strategy = "additive",
             use_history_of_variables = FALSE,
             time_covariates = time_covariates,
-            baseline_covariates = baseline_covariates,
+            baseline_covariates = baseline_covariates2,
             type = "propensity",
             penalize = penalize_treatment,
             exclude_latest_covariate = exclude_latest_covariate,
-            verbose = verbose)]
-        data[, A_0_var := NULL]
-        ## Check if any propensity scores are NA
-        if (data[, .(any(is.na(propensity_0) | propensity_0 == 0))]$V1) {
-           stop("NA or zero values in baseline propensity scores. ")
+            verbose = verbose
+        )
+
+        set(data, j = "propensity_0", value = preds0)
+
+        set(data, j = "A_0_var", value = NULL)
+
+        if (any(is.na(data$propensity_0) | data$propensity_0 == 0)) {
+            stop("NA or zero values in baseline propensity scores.")
         }
     }
-    data[, c("event_k", "time_k", "time_k_prev", "event_k_prev", "A_k") := NULL]
-    out<-list(marginal_censoring_fit = marginal_censoring_fit,
-              data = data,
-              prepared_data_object = prepared_data)
+
+    ############################################################################
+    ## Remove temporary columns
+    ############################################################################
+    temp_cols <- c("event_k", "time_k", "time_k_prev", "event_k_prev", "A_k")
+    for (cc in temp_cols) set(data, j = cc, value = NULL)
+
+    out <- list(
+        marginal_censoring_fit = marginal_censoring_fit,
+        data = data,
+        prepared_data_object = prepared_data
+    )
     class(out) <- "debiased_prepared"
     out
-    ##list(marginal_censoring_fit = marginal_censoring_fit, censoring_models = censoring_models)
 }
-
 ######################################################################
 ### get_propensity_scores.R ends here
 

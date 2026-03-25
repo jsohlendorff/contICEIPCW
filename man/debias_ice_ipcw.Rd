@@ -7,7 +7,7 @@ at a given time horizon in continuous time.}
 \usage{
 debias_ice_ipcw(
   prepared_data,
-  time_horizon,
+  time_horizons = NULL,
   model_pseudo_outcome = "scaled_quasibinomial",
   penalize_pseudo_outcome = FALSE,
   model_hazard = "learn_coxph",
@@ -25,7 +25,7 @@ debias_ice_ipcw(
 \arguments{
 \item{prepared_data}{An object of class \code{debiased_prepared} containing the prepared data and relevant information for the debiased ICE-IPCW procedure. This object should be obtained by first running the \code{prepare_data} function and then the \code{propensity_scores} function.}
 
-\item{time_horizon}{A numeric value representing the time horizon at which to estimate the mean interventional absolute risk.}
+\item{time_horizons}{A numeric value representing the time horizon at which to estimate the mean interventional absolute risk.}
 
 \item{model_pseudo_outcome}{A string specifying the type of model to use for the iterative conditional expectations estimator.
 Options include \code{"tweedie"}, \code{"quasibinomial"}, \code{"scaled_quasibinomial"}, \code{"ranger"}, and \code{"log_normal_mixture"}.
@@ -97,7 +97,7 @@ data_continuous <- simulate_continuous_time_data(
 )
 prep_data <- prepare_data(
  data = data_continuous,
- max_time_horizon = 720,
+ time_horizons = 720,
 time_covariates = c("A", "L"),
 baseline_covariates = c("age", "A_0", "L_0"),
 marginal_censoring = TRUE
@@ -110,7 +110,7 @@ verbose = TRUE)
 
 result <- debias_ice_ipcw(
 prepared_data = propensity_score_data,
-time_horizon = 720,
+time_horizons = 720,
 model_pseudo_outcome = "lm",
 model_hazard = "learn_coxph",
 conservative = TRUE,

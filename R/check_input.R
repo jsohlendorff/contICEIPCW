@@ -1,7 +1,7 @@
 check_input <- function(baseline_covariates,
                         time_covariates,
                         data,
-                        time_horizon) {
+                        time_horizons) {
     event<-terminal_time<-id<-time<-N<-.<-..<-NULL
     ## TODO: Need to more thorougly check user input.
     ## Check the baseline covariates and time covariates are not empty and character strings
@@ -35,8 +35,8 @@ check_input <- function(baseline_covariates,
     }
 
     ## Check that time_horizon is a positive numeric value
-    if (!is.numeric(time_horizon) || length(time_horizon) != 1 || time_horizon <= 0) {
-        stop("tau must be a positive numeric value.")
+    if (!is.numeric(time_horizons) || length(time_horizons) < 1 || any(time_horizons <= 0)) {
+        stop("time_horizon must consist of positive numeric value(s).")
     }
 
     ## Check that event is a factor with that includes A, L, C, Y, D, and end_of_study
@@ -68,8 +68,7 @@ check_input <- function(baseline_covariates,
     data_with_terminal <- merge(data$timevarying_data, terminal_events, by = "id", all.x = TRUE)
     non_terminal_after_terminal <- data_with_terminal[time > terminal_time]
     if (nrow(non_terminal_after_terminal) > 0) {
-        stop("There are non-terminal events occurring after terminal events for some ids. Please ensure that
-    non-terminal events do not occur after terminal events.")
+        stop("There are non-terminal events occurring after terminal events for some ids. Please ensure that non-terminal events do not occur after terminal events.")
     }
 
     ## Check that the last event for each id is a terminal event

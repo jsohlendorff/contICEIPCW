@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (19:33) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (14:54) 
+## Last-Updated: Mar 24 2026 (17:52) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 44
+##     Update #: 90
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -31,7 +31,7 @@
 #'  Note that `A`, `L`, `C`, `Y`, and `D` are the event types, corresponding to
 #'  `Y` (event of interest), `D` (competing event), `A` (visiting event), `L` (covariate event),
 #'  `C` (censoring event).
-#' @param max_time_horizon A numeric value representing the maximum time horizon considered for the analysis.
+#' @param time_horizons A numeric value representing the maximum time horizon considered for the analysis.
 #' @param time_covariates A character vector of column names in \code{data} that are
 #'   treated as time-varying covariates. Must include values of time-varying covariates at baseline.
 #' @param baseline_covariates A character vector of column names in \code{data} that are
@@ -59,23 +59,23 @@
 #' )
 #' prep_data <- prepare_data(
 #'  data = data_continuous,
-#'  max_time_horizon = 720,
+#'  time_horizons = 720,
 #' time_covariates = c("A", "L"),
 #' baseline_covariates = c("age", "A_0", "L_0"),
 #' marginal_censoring = TRUE
 #' )
 
 prepare_data <- function(data,
-                         max_time_horizon,
+                         time_horizons,
                          time_covariates,
                          baseline_covariates,
                          marginal_censoring = TRUE,
                          min_events = 40,
                          last_non_terminal_event = NULL,
-                         verbose) {
-    event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
+                         verbose = FALSE) {
+    event <- time <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
     ## Check user input
-    check_input(baseline_covariates, time_covariates, data, max_time_horizon)
+    check_input(baseline_covariates, time_covariates, data, time_horizons)
 
     ## Get timevarying data and baseline data and add event number by id
     timevarying_data <- data$timevarying_data[, event_number := seq_len(.N), by = id]
@@ -85,27 +85,35 @@ prepare_data <- function(data,
     ## select last event number adaptively because the iterative
     ## regressions may not have sufficient data to fit the models for later events.
     ## NOTE: Modifies data.
-    select_last_event_out <- select_last_event(timevarying_data, max_time_horizon, last_non_terminal_event, min_events, verbose)
+    select_last_event_out <- select_last_event(timevarying_data, time_horizons, last_non_terminal_event, min_events, verbose)
     timevarying_data <- select_last_event_out$timevarying_data
-    last_event <- select_last_event_out$last_event
+    info <- select_last_event_out$info
     
     censoring_info_result <- censoring_info(timevarying_data,
                                             baseline_data,
-                                            max_time_horizon,
+                                            time_horizons,
                                             marginal_censoring)
     is_censored <- censoring_info_result$is_censored
     data_marginal_censoring <- censoring_info_result$data_marginal_censoring
-    
+    info[, is_censored := unlist(is_censored)]
     ## Convert the data from long format to wide format
     wide_data <- widen_continuous_data(timevarying_data,
                                        baseline_data,
                                        time_covariates)
 
+    ## Add pooled data for each last event number to the wide data
+    unique_last_events <- unique(info$last_event)
+    for (v in unique_last_events) {
+        pooled_data <- timevarying_data[event %in% c("Y", "D", "C", "tauend") & event_number >= v, .(id, time, event)]
+        old_names <- c("time", "event")
+        new_names <- paste0(old_names, "_pooled_", v)
+        setnames(pooled_data, old = old_names, new = new_names)
+        wide_data <- merge(wide_data, pooled_data, by = "id", all.x = TRUE)
+    }
     out <- list(
         wide_data = wide_data,
-        is_censored = is_censored,
         data_marginal_censoring = data_marginal_censoring,
-        last_event = last_event,
+        info = info,
         time_covariates = time_covariates,
         baseline_covariates = baseline_covariates,
         marginal_censoring = marginal_censoring

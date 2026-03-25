@@ -56,7 +56,7 @@ data_continuous <- simulate_continuous_time_data(
 )
 prep_data <- prepare_data(
  data = data_continuous,
- max_time_horizon = 720,
+ time_horizons = 720,
 time_covariates = c("A", "L"),
 baseline_covariates = c("age", "A_0", "L_0"),
 marginal_censoring = TRUE
