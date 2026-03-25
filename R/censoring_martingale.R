@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (14:37) 
+## Last-Updated: Mar 25 2026 (11:23) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 441
+##     Update #: 515
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -14,8 +14,7 @@
 #----------------------------------------------------------------------
 ## 
 ### Code:
-censoring_martingale <- function(
-                                 data_censoring,
+censoring_martingale <- function(data_censoring,
                                  data_at_risk,
                                  at_risk_interevent,
                                  time_covariates,
@@ -61,16 +60,22 @@ censoring_martingale <- function(
     ] > 0
 
     if (!cens_exists) {
-        data_at_risk[, cens_mg := 0]
-        return(
-            merge(
-                data_at_risk[, .(id, pseudo_outcome, q_prediction, cens_mg)],
-                data[, .(id, inverse_cumulative_probability_weights)],
-                by = "id"
-            )[, inverse_cumulative_probability_weights :=
-                    inverse_cumulative_probability_weights *
-                    (pseudo_outcome - q_prediction + cens_mg)]
-        )
+        data.table::set(data_at_risk, j = "cens_mg", value = 0)
+        
+        
+        merged <- data_at_risk[, .(id, pseudo_outcome, q_prediction, cens_mg)][
+            data[, .(id, inverse_cumulative_probability_weights)],
+            on = .(id)
+        ]
+        
+        set(merged,
+            j = "inverse_cumulative_probability_weights",
+            value =
+                merged$inverse_cumulative_probability_weights *
+                (merged$pseudo_outcome - merged$q_prediction + merged$cens_mg)
+            )
+
+        return(merged)
     }
 
     ## ------------------------------------------------------------------
@@ -103,7 +108,7 @@ censoring_martingale <- function(
     ## ------------------------------------------------------------------
 
     if (k == 1)
-        data_at_risk[, time_0 := 0]
+        data.table::set(data_at_risk, j = "time_0", value = 0)
 
     tmin <- min(data_at_risk[[time_k_prev]])
     tmax <- min(max(data_at_risk[[time_k]]), time_horizon)
@@ -117,8 +122,9 @@ censoring_martingale <- function(
     }  
 
     ## protocol follow indicator
-    data_at_risk[, protocol_follow := data[id, "ipw_cum_weight"] > 0]
-
+    ids_data_at_risk <- data_at_risk[["id"]]
+    data.table::set(data_at_risk, j = "protocol_follow", value = data[ids_data_at_risk, "ipw_cum_weight"] > 0)
+    
     ids_follow <- data_at_risk[protocol_follow == TRUE, id]
 
     ## ------------------------------------------------------------------
@@ -131,15 +137,39 @@ censoring_martingale <- function(
         ]
 
         if (u == min(time_grid)) {
-            dt[, q_pred_u := 0]
+            data.table::set(dt, j = "q_pred_u", value = 0)
         } else if (u == time_horizon) {
             dt <- dt[protocol_follow == TRUE]
-            dt[, q_pred_u := q_prediction]
+            set(dt, j = "q_pred_u", value = dt$q_prediction)
         } else {
-            dt[, pseudo_outcome_unweighted_u :=
-                     pseudo_outcome_unweighted * (time_k <= u)]
-            dt[, ipcw_u := ipcw_k(.SD, k, marginal_censoring_fit, u, TRUE, FALSE, NULL)]
-            dt[, pseudo_outcome_u := pseudo_outcome_unweighted_u * ipcw_u]
+            ## pseudo_outcome_unweighted_u
+            set(
+                dt,
+                j = "pseudo_outcome_unweighted_u",
+                value = dt$pseudo_outcome_unweighted * (dt[[time_k]] <= u)
+            )
+
+            ## ipcw_u
+            data.table::set(
+                            dt,
+                            j = "ipcw_u",
+                            value = ipcw_k(
+                                dt,
+                                k,
+                                marginal_censoring_fit,
+                                u,
+                                TRUE,
+                                FALSE,
+                                NULL
+                            )
+                        )
+
+            ## pseudo_outcome_u
+            set(
+                dt,
+                j = "pseudo_outcome_u",
+                value = dt$pseudo_outcome_unweighted_u * dt$ipcw_u
+            )
 
             q_fit <- regression_fit(
                 dt,
@@ -157,7 +187,7 @@ censoring_martingale <- function(
                 verbose = FALSE
             )
 
-            dt[, q_pred_u := q_fit(.SD)]
+            set(dt, j = "q_pred_u", value = q_fit(dt))
         }
         dt <- dt[protocol_follow == TRUE]
 
@@ -172,7 +202,7 @@ censoring_martingale <- function(
     ## NOTE: Need preds_start for linear approximation of q_diff, start point 
     preds_start <- data.table::data.table(id = ids_follow, time = data_at_risk[id %in% ids_follow, time_k_prev], q_diff = data_at_risk[id %in% ids_follow, q_prediction])
     preds <- rbind(preds, preds_start)
-    preds[, type := "pred"]
+    data.table::set(preds, j = "type", value = "pred")
     setkey(preds, id, time)
 
     ## ------------------------------------------------------------------
@@ -183,7 +213,9 @@ censoring_martingale <- function(
         event_k == "C" &
         time_k <= time_horizon,
         .(id, time = time_k)
-    ][, `:=`(q_diff = NA_real_, type = "counting_process")]
+    ]
+    set(cens_times, j = "q_diff", value = NA_real_)
+    set(cens_times, j = "type",   value = "counting_process")
 
     ## ------------------------------------------------------------------
     ## 6. Censoring cumulative hazard grid (at all terminal event times)
@@ -195,18 +227,20 @@ censoring_martingale <- function(
     ]
 
     cj_dat <- data.table::CJ(time = censor_times, id = ids_follow)
-    cj_dat <- merge(
-        cj_dat,
+    
+    cj_dat <- cj_dat[
         data_at_risk[, .(id,
                          time_k = time_k,
                          time_k_prev = time_k_prev)],
-        by = "id"
-    )
+        on = .(id)
+    ]
 
     cj_dat <- cj_dat[
         time_k_prev < time & time <= time_k,
         .(id, time)
-    ][, `:=`(q_diff = NA_real_, type = "cumhazard")]
+    ]
+    set(cj_dat, j = "q_diff", value = NA_real_)
+    set(cj_dat, j = "type",   value = "cumhazard")
 
     ## ------------------------------------------------------------------
     ## 7. Combine prediction + hazard structure
@@ -222,20 +256,26 @@ censoring_martingale <- function(
         y
     }
 
-    preds[, q_diff := na_approx_base(q_diff, time), by = id]
+    ## linearly interpolate by id
+    for (grp in unique(preds$id)) {
+        idx <- which(preds$id == grp)
+        set(preds, i = idx, j = "q_diff",
+            value = na_approx_base(preds$q_diff[idx], preds$time[idx]))
+    }
     preds <- preds[type != "pred"]
 
     ## ------------------------------------------------------------------
     ## 8. Compute event survival S
     ## ------------------------------------------------------------------
 
-    preds_surv <- merge(
-        preds,
-        data_at_risk[, .(id,time_k_prev = time_k_prev)],
-        by = "id"
-    )
+    preds_surv <- preds[
+        data_at_risk[, .(id, time_k_prev)],
+        on = .(id)
+    ]
 
-    preds_surv[, time := time - time_k_prev] ## Interarrival event form
+    ## Interarrival event form
+    set(preds_surv, j = "time",
+        value = preds_surv$time - preds_surv$time_k_prev)
 
     preds_surv <- cumulative_hazard_cox(
         surv_fit$fit,
@@ -243,14 +283,16 @@ censoring_martingale <- function(
         at_risk_interevent
     )
 
-    preds_surv[, surv := exp(-Lambda_minus)]
-    preds_surv[, time := time + time_k_prev]
-    
-    preds <- merge(
-        preds,
-        preds_surv[, .(id, time, surv, type)],
-        by = c("id", "time", "type")
-    )
+    set(preds_surv, j = "surv", value = exp(-preds_surv$Lambda_minus))
+    set(preds_surv, j = "time",
+        value = preds_surv$time + preds_surv$time_k_prev)
+
+    preds <- 
+        preds[
+            preds_surv[, .(id, time, type, surv)],
+            on = .(id, time, type),
+            nomatch = 0
+        ]
 
     ## ------------------------------------------------------------------
     ## 9. Compute censoring hazard
@@ -259,7 +301,11 @@ censoring_martingale <- function(
     if (!inherits(marginal_censoring_fit$fit, "coxph"))
         stop("Only coxph marginal censoring supported.")
 
-    preds <- merge(preds, data_at_risk[, c("id", time_k_prev), with = FALSE], by = "id")
+    ##preds <- merge(preds, data_at_risk[, c("id", time_k_prev), with = FALSE], by = "id")
+    preds <- preds[
+        data_at_risk[, c("id", time_k_prev), with = FALSE],
+        on = .(id)
+    ]
 
     preds <- cumulative_hazard_cox(
         marginal_censoring_fit$fit,
@@ -272,17 +318,19 @@ censoring_martingale <- function(
              c("Lambda", "Lambda_minus"),
              c("Lambda_C", "Lambda_C_minus"))
 
-    preds[, `:=`(
-        surv_cens = exp(-Lambda_C_minus),
-        Lambda_C_diff = Lambda_C - Lambda_C_minus
-    )]
+    set(preds, j = "surv_cens", value = exp(-preds$Lambda_C_minus))
+    set(preds, j = "Lambda_C_diff",
+        value = preds$Lambda_C - preds$Lambda_C_minus)
 
     ## ------------------------------------------------------------------
     ## 10. Build martingale terms
     ## ------------------------------------------------------------------
 
-    preds[, integrand :=
-                q_diff / (surv * surv_cens)]
+    set(
+        preds,
+        j = "integrand",
+        value = preds$q_diff / (preds$surv * preds$surv_cens)
+    )
 
     counting_term <- preds[type == "counting_process",
                            .(mg_counting_term = integrand),
@@ -293,33 +341,35 @@ censoring_martingale <- function(
                                sum(Lambda_C_diff * integrand)),
                          by = id]
 
-    mg <- merge(counting_term,
-                lambda_term,
-                by = "id",
-                all = TRUE)
+    mg <- counting_term[lambda_term, on = .(id)]
     mg[is.na(mg)] <- 0
-    mg[, cens_mg := mg_counting_term - mg_lambda_term]
+    set(mg, j = "cens_mg", value = mg$mg_counting_term - mg$mg_lambda_term)
 
     ## ------------------------------------------------------------------
     ## 11. Merge back and return IC
     ## ------------------------------------------------------------------  
-    out <- merge(
+
+    out <- mg[, .(id, cens_mg)][
         data_at_risk,
-        mg[, .(id, cens_mg)],
-        by = "id",
-        all.x = TRUE
-    )
+        on = .(id)
+    ]
 
-    out[is.na(cens_mg), cens_mg := 0]
+    which_na_cens_mg <- which(is.na(out$cens_mg))
+    set(out, i = which_na_cens_mg, j = "cens_mg", value = 0)
 
-    ic_final <- merge(
-        out[, .(id, pseudo_outcome,
-                q_prediction, cens_mg)],
+    ic_final <- out[, .(id, pseudo_outcome, q_prediction, cens_mg)][
         data[, .(id, ipw_cum_weight)],
-        by = "id"
-    )
+        on = .(id)
+    ]
 
-    ic_final[, ipw_cum_weight := ipw_cum_weight * (pseudo_outcome - q_prediction + cens_mg)]
+    set(
+        ic_final,
+        j = "ipw_cum_weight",
+        value =
+            ic_final$ipw_cum_weight *
+            (ic_final$pseudo_outcome - ic_final$q_prediction + ic_final$cens_mg)
+    )
+    return(ic_final)
 }
 
 ######################################################################
