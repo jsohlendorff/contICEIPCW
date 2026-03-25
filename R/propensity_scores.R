@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (14:49) 
+## Last-Updated: Mar 25 2026 (18:35) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 406
+##     Update #: 407
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -181,7 +181,7 @@ propensity_scores <- function(prepared_data,
                         stop("Censoring model must be Cox when marginal_censoring=TRUE.")
                     }
 
-                    data_use <- data2[data2$event_k_prev %in% c("A","L")]
+                    data_use <- data2[event_k_prev %in% c("A","L")]
 
                     set(data_use, j = "time",
                         value = data_use[[paste0(time_variable, "_", k)]])

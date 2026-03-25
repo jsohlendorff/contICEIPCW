@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (13:10) 
+## Last-Updated: Mar 25 2026 (20:03) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 27
+##     Update #: 28
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -62,7 +62,11 @@ learn_Q <- function(model_type,
                 scale <- max_weight
                 penalize <- FALSE
             }
-            data_learn$out <- data_learn[[outcome_name]] / scale
+            set(
+                data_learn,
+                j = "out",
+                value = data_learn[[outcome_name]] / scale
+            )
             weights <- rep(1, nrow(data_learn))
             family <- quasibinomial()
         } else if (model_type %in% c("ipcw_glm_expit", "ipcw_glm_probit")) {

@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (14:51) 
+## Last-Updated: Mar 25 2026 (18:29) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 527
+##     Update #: 528
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -254,11 +254,7 @@ censoring_martingale <- function(data_censoring,
     }
 
     ## linearly interpolate by id
-    for (grp in unique(preds$id)) {
-        idx <- which(preds$id == grp)
-        set(preds, i = idx, j = "q_diff",
-            value = na_approx_base(preds$q_diff[idx], preds$time[idx]))
-    }
+    preds[, q_diff := na_approx_base(q_diff, time), by = id]
     preds <- preds[type != "pred"]
 
     ## ------------------------------------------------------------------
