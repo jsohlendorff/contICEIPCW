@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:51) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:51) 
+## Last-Updated: Mar 25 2026 (11:58) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 1
+##     Update #: 3
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -23,7 +23,7 @@ widen_continuous_data <- function(timevarying_data, baseline_data, time_covariat
                                    )
 
     ## Merge with baseline data
-    data_wide <- merge(data_wide, baseline_data, by = "id")
+    data_wide <- data_wide[baseline_data, on = "id"]
     data_wide[, c("event_0", "time_0") := list("A", 0)]
 }
 

@@ -65,7 +65,7 @@ check_input <- function(baseline_covariates,
 
     ## Check that no non-terminal events occur after any terminal events for each id
     terminal_events <- data$timevarying_data[event %in% c("Y", "D", "C", "tauend"), .(terminal_time = min(time)), by = id]
-    data_with_terminal <- merge(data$timevarying_data, terminal_events, by = "id", all.x = TRUE)
+    data_with_terminal <- terminal_events[data$timevarying_data, on = "id"]
     non_terminal_after_terminal <- data_with_terminal[time > terminal_time]
     if (nrow(non_terminal_after_terminal) > 0) {
         stop("There are non-terminal events occurring after terminal events for some ids. Please ensure that non-terminal events do not occur after terminal events.")

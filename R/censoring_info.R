@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (14:15) 
 ## Version: 
-## Last-Updated: Mar 24 2026 (14:05) 
+## Last-Updated: Mar 25 2026 (12:01) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 24
+##     Update #: 27
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -20,10 +20,10 @@ censoring_info <- function(timevarying_data, baseline_data, time_horizons, margi
     
     ## If marginal_censoring is TRUE, get data with time-varying covariates
     if (marginal_censoring && any(unlist(is_censored))) {
-        data_marginal_censoring <- merge(timevarying_data[event %in% c("tauend", "C", "Y", "D")],
-                                baseline_data,
-                                by = "id",
-                                all.x = TRUE)
+        data_marginal_censoring <-
+            timevarying_data[event %in% c("tauend", "C", "Y", "D")][
+                baseline_data, on = "id"
+            ]
     } else {
         data_marginal_censoring <- NULL
     }

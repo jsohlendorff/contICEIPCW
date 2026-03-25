@@ -156,7 +156,7 @@ debias_ice_ipcw <- function(prepared_data,
             
             ## Iterated part; use the predictions from the previous iteration
             if (!is_last_event) {
-                data_at_risk <- merge(data_at_risk, q_prediction, by = "id", all.x = TRUE)
+                data_at_risk <- q_prediction[data_at_risk, on = "id"]
                 data_at_risk[is.na(q_prediction_prev), q_prediction_prev := 0]
             } else {
                 data_at_risk[, q_prediction_prev := 0]
@@ -218,7 +218,11 @@ debias_ice_ipcw <- function(prepared_data,
                                                  static_intervention)
             } else {
                 ## If conservative, we do not compute the martingale terms
-                ic_final <- merge(data_at_risk[, c("pseudo_outcome", "q_prediction", "id")], data[, c("ipw_cum_weight", "id")], by = "id")
+                ## Merge without 'merge'
+                ic_final <-  data[, c("ipw_cum_weight", "id")][
+                    data_at_risk[, c("pseudo_outcome", "q_prediction", "id"), with = FALSE],
+                    on = "id"
+                ]
                 if (tmle_update) {
                     ## Note: Solving the equation for scaled q_predictionictions and scaled pseudo_outcomes, correspond to getting epsilon from original problem
                     tryCatch({
@@ -252,7 +256,7 @@ debias_ice_ipcw <- function(prepared_data,
             ic_final <- ic_final[, c("ipw_cum_weight", "id")]
             ## Now add the influence curve to the data 
             data[, ipw_cum_weight := NULL]
-            data <- merge(ic_final, data, by = "id", all = TRUE)
+            data <- ic_final[data, on = "id"]
             data[is.na(ipw_cum_weight), ipw_cum_weight := 0]
 
             data[, ic := ic + ipw_cum_weight]

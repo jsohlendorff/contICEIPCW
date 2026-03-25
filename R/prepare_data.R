@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (19:33) 
 ## Version: 
-## Last-Updated: Mar 24 2026 (17:52) 
+## Last-Updated: Mar 25 2026 (11:59) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 90
+##     Update #: 94
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -108,7 +108,7 @@ prepare_data <- function(data,
         old_names <- c("time", "event")
         new_names <- paste0(old_names, "_pooled_", v)
         setnames(pooled_data, old = old_names, new = new_names)
-        wide_data <- merge(wide_data, pooled_data, by = "id", all.x = TRUE)
+        wide_data <- pooled_data[wide_data, on = "id"]
     }
     out <- list(
         wide_data = wide_data,

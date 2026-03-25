@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (11:23) 
+## Last-Updated: Mar 25 2026 (11:48) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 515
+##     Update #: 516
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -301,7 +301,6 @@ censoring_martingale <- function(data_censoring,
     if (!inherits(marginal_censoring_fit$fit, "coxph"))
         stop("Only coxph marginal censoring supported.")
 
-    ##preds <- merge(preds, data_at_risk[, c("id", time_k_prev), with = FALSE], by = "id")
     preds <- preds[
         data_at_risk[, c("id", time_k_prev), with = FALSE],
         on = .(id)
