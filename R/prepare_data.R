@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (19:33) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (13:06) 
+## Last-Updated: Mar 25 2026 (15:04) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 97
+##     Update #: 98
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -65,65 +65,99 @@
 #' marginal_censoring = TRUE
 #' )
 
-prepare_data <- function(data,
-                         time_horizons,
-                         time_covariates,
-                         baseline_covariates,
-                         marginal_censoring = TRUE,
-                         min_events = 40,
-                         last_non_terminal_event = NULL,
-                         verbose = FALSE) {
-    ## Check user input
+prepare_data <- function(
+    data,
+    time_horizons,
+    time_covariates,
+    baseline_covariates,
+    marginal_censoring = TRUE,
+    min_events = 40,
+    last_non_terminal_event = NULL,
+    verbose = FALSE
+) {
+    # ------------------------------------------------------------
+    # 1. Input checks
+    # ------------------------------------------------------------
     check_input(baseline_covariates, time_covariates, data, time_horizons)
 
-    ## Get timevarying data and baseline data and add event number by id
-    timevarying_data <- data$timevarying_data[, event_number := seq_len(.N), by = id]
+    # ------------------------------------------------------------
+    # 2. Prepare long-format data: add event_number by id
+    # ------------------------------------------------------------
+    timevarying_data <- data$timevarying_data[
+        , event_number := seq_len(.N), by = id
+    ]
     baseline_data <- data$baseline_data
 
-    ## If last event number not provided,
-    ## select last event number adaptively because the iterative
-    ## regressions may not have sufficient data to fit the models for later events.
-    ## NOTE: Modifies data.
-    select_last_event_out <- select_last_event(timevarying_data, time_horizons, last_non_terminal_event, min_events, verbose)
+    # ------------------------------------------------------------
+    # 3. Select last usable event number (adaptive truncation)
+    # ------------------------------------------------------------
+    select_last_event_out <- select_last_event(
+        timevarying_data,
+        time_horizons,
+        last_non_terminal_event,
+        min_events,
+        verbose
+    )
+
     timevarying_data <- select_last_event_out$timevarying_data
     info <- select_last_event_out$info
-    
-    censoring_info_result <- censoring_info(timevarying_data,
-                                            baseline_data,
-                                            time_horizons,
-                                            marginal_censoring)
+
+    # ------------------------------------------------------------
+    # 4. Censoring information
+    # ------------------------------------------------------------
+    censoring_info_result <- censoring_info(
+        timevarying_data,
+        baseline_data,
+        time_horizons,
+        marginal_censoring
+    )
+
     is_censored <- censoring_info_result$is_censored
     data_marginal_censoring <- censoring_info_result$data_marginal_censoring
-    set(
-        info,
-        j = "is_censored",
-        value = unlist(is_censored)
-    )
-    ## Convert the data from long format to wide format
-    wide_data <- widen_continuous_data(timevarying_data,
-                                       baseline_data,
-                                       time_covariates)
 
-    ## Add pooled data for each last event number to the wide data
+    set(info, j = "is_censored", value = unlist(is_censored))
+
+    # ------------------------------------------------------------
+    # 5. Long → wide transformation of time‑varying covariates
+    # ------------------------------------------------------------
+    wide_data <- widen_continuous_data(
+        timevarying_data,
+        baseline_data,
+        time_covariates
+    )
+
+    # ------------------------------------------------------------
+    # 6. Add pooled outcome information for each unique last_event
+    # ------------------------------------------------------------
     unique_last_events <- unique(info$last_event)
+
     for (v in unique_last_events) {
-        pooled_data <- timevarying_data[event %in% c("Y", "D", "C", "tauend") & event_number >= v, .(id, time, event)]
+        pooled_data <- timevarying_data[
+            event %in% c("Y", "D", "C", "tauend") & event_number >= v,
+            .(id, time, event)
+        ]
+
         old_names <- c("time", "event")
         new_names <- paste0(old_names, "_pooled_", v)
         setnames(pooled_data, old = old_names, new = new_names)
+
         wide_data <- pooled_data[wide_data, on = "id"]
     }
+
+    # ------------------------------------------------------------
+    # 7. Final structured output
+    # ------------------------------------------------------------
     out <- list(
-        wide_data = wide_data,
+        wide_data              = wide_data,
         data_marginal_censoring = data_marginal_censoring,
-        info = info,
-        time_covariates = time_covariates,
-        baseline_covariates = baseline_covariates,
-        marginal_censoring = marginal_censoring
+        info                   = info,
+        time_covariates        = time_covariates,
+        baseline_covariates    = baseline_covariates,
+        marginal_censoring     = marginal_censoring
     )
+
     class(out) <- "prepare_data_continuous"
     return(out)
 }
-
 ######################################################################
 ### prepare_data.R ends here
