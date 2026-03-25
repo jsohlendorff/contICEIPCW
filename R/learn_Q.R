@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (15:43) 
+## Last-Updated: Mar 25 2026 (13:10) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 25
+##     Update #: 27
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -32,7 +32,6 @@ learn_Q <- function(model_type,
                     penalize,
                     verbose,
                     k) {
-    
     max_weight <- max(data_learn[[outcome_name]])
     if (is.null(max_weight) || is.na(max_weight)) {
         stop("The 'weight' column in data_learn must not be NULL or NA.")
@@ -101,15 +100,6 @@ learn_Q <- function(model_type,
            ## Use Lasso with glmnet
            X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
            y <- data_learn[["out"]]
-           ## If CV fit has try error
-           ## do the followingb
-               ##            if (verbose) {
-               ##     warning("glmnet cv.glmnet failed: ", e$message)
-               ##     message("Trying different lambda sequence for glmnet...")
-               ## } 
-               ## lambdas <- glmnet::glmnet(X, y, alpha = 1, weights = weights, family = family)$lambda
-               ## cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, lambda = lambdas, family = family)
-
            tryCatch({
                cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, family = family)
            },

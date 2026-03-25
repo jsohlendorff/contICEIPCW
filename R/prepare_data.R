@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (19:33) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (13:03) 
+## Last-Updated: Mar 25 2026 (13:06) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 96
+##     Update #: 97
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -73,7 +73,6 @@ prepare_data <- function(data,
                          min_events = 40,
                          last_non_terminal_event = NULL,
                          verbose = FALSE) {
-    event <- time <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- inverse_cumulative_probability_weights <- inverse_cumulative_probability_weights_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- NULL
     ## Check user input
     check_input(baseline_covariates, time_covariates, data, time_horizons)
 

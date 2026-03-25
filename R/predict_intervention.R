@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:50) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (12:55) 
+## Last-Updated: Mar 25 2026 (13:07) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 8
+##     Update #: 9
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -17,7 +17,6 @@
 
 ## Wrapper function to predict the outcome under an intervention
 predict_intervention <- function(data, k, predict_fun, static_intervention, verbose) {
-  event_k <- A_0 <- event_k_intervention <- NULL
   intervened_data <- copy(data)
   if (k > 0) {
     which_event_A <- which(intervened_data[[paste0("event_", k)]] == "A")

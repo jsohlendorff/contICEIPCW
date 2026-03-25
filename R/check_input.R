@@ -2,7 +2,6 @@ check_input <- function(baseline_covariates,
                         time_covariates,
                         data,
                         time_horizons) {
-    event<-terminal_time<-id<-time<-N<-.<-..<-NULL
     ## TODO: Need to more thorougly check user input.
     ## Check the baseline covariates and time covariates are not empty and character strings
     if (length(baseline_covariates) == 0 || !is.character(baseline_covariates)) {

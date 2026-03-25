@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:50) 
 ## Version: 
-## Last-Updated: Mar 13 2026 (18:50) 
+## Last-Updated: Mar 25 2026 (13:07) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 1
+##     Update #: 2
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -19,7 +19,6 @@ learn_coxph <- function(character_formula,
                         data,
                         time_variable = "time",
                         penalize, ...){
-    exp_lp <- surv <- hazard <- NULL
     formula_cox <- as.formula(character_formula)
 
     if (!penalize || length(labels(stats::terms(as.formula(character_formula)))) == 1){ ## do not run penalized regression with one covariate only

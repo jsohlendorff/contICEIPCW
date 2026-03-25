@@ -13,3 +13,15 @@ NULL
 }
 
 .datatable.aware <- TRUE
+
+## Deal with idiotic notes from R CMD check about variables in data.table code
+utils::globalVariables(c(
+  "A", "A_0", "L", "L_0", "Lambda_C_diff",
+  "N", "A", "A_0", "L", "L_0",
+  "cens_mg", "entrytime", "event", "event_k_prev",
+  "event_number", "id", "integrand", "inverse_cumulative_probability_weights",
+  "ipw_cum_weight", "last_event", "n_A_events", "n_L_events",
+  "new_A", "pseudo_outcome", "protocol_follow", "q_pred_u",
+  "q_prediction", "surv", "terminal_time", "time", "time_horizon",
+  "time_k_prev", "type", ".", "..baseline_covariates"
+))

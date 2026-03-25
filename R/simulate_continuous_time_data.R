@@ -189,7 +189,6 @@ simulate_continuous_time_data <- function(n,
                                           time_varying_covariate_cumulative_effect = TRUE,
                                           limit_event_L = 1) {
     requireNamespace("Rfast", quietly = TRUE)
-    L_0 <- A_0 <- age <- id <- time <- event <- L <- A <- n_A_events <- n_L_events <- new_A <- entrytime <- NULL
     if (!is.null(static_intervention)) {
         static_intervention_baseline <- static_intervention
     }

@@ -93,7 +93,6 @@ debias_ice_ipcw <- function(prepared_data,
                             lag = NULL,
                             verbose = FALSE,
                             tmle_update = FALSE) {
-    time_horizon <- event_number <- id <- ic <- pseudo_outcome <- survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <- ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <- g_formula_estimate <- . <- ipcw <- pseudo_outcome_unweighted <- NULL
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop("prepared_data must be an object of class 'debiased_prepared'.
               Please run the 'prepare_data' function and then the 'propensity_scores'

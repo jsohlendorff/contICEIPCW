@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (12:26) 
 ## Version: 
-## Last-Updated: Mar 24 2026 (17:52) 
+## Last-Updated: Mar 25 2026 (13:07) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 104
+##     Update #: 105
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -17,7 +17,6 @@
 
 ## Adaptively select last event based on the data if not provided
 select_last_event <- function(timevarying_data, time_horizons, last_non_terminal_event, min_events, verbose) {
-    last_event <- time <- event <- event_number <- id <- N <- . <- NULL
     max_time_horizon <- max(time_horizons)
     if (is.null(last_non_terminal_event)) {
         last_non_terminal_event <- list()

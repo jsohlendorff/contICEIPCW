@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (09:44) 
+## Last-Updated: Mar 25 2026 (13:09) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 395
+##     Update #: 397
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -67,12 +67,6 @@ propensity_scores <- function(prepared_data,
                               static_intervention = 1,
                               exclude_latest_covariate = NULL,
                               verbose = FALSE) {
-
-    time_v <- time_k_prev <- event_number <- id <- ic <- pseudo_outcome <- 
-        survival_censoring_k <- event_k <- time_k <- ipw_cum_weight <-
-        ipw_cum_weight_k_prev <- ipw <- ipw_k <- pred_0 <- estimate <-
-        g_formula_estimate <- . <- A_var <- A_0 <- A_0_var <- NULL
-
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }
@@ -88,10 +82,6 @@ propensity_scores <- function(prepared_data,
     if (any(info$is_censored) && is.null(model_hazard)) {
         stop("Censoring is present, but no censoring model is provided.")
     }
-
-    hazard_minus <- hazard <- event_k <- time_0 <- exp_lp <- surv <- id <- 
-        event_k_prev <- survival_censoring_k <- A_k <- propensity_k <- 
-        propensity_0 <- NULL
 
     ## Handle marginal censoring
     if (any(info$is_censored) && marginal_censoring) {

@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (14:15) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (12:01) 
+## Last-Updated: Mar 25 2026 (13:07) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 27
+##     Update #: 28
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -15,7 +15,6 @@
 ## 
 ### Code:
 censoring_info <- function(timevarying_data, baseline_data, time_horizons, marginal_censoring) {
-    event<-time<-NULL
     is_censored <- lapply(time_horizons, function(x) timevarying_data[event == "C" & time < x, .N] > 0)
     
     ## If marginal_censoring is TRUE, get data with time-varying covariates

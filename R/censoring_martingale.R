@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (11:48) 
+## Last-Updated: Mar 25 2026 (13:05) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 516
+##     Update #: 517
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -32,8 +32,6 @@ censoring_martingale <- function(data_censoring,
                                  data,
                                  static_intervention
                                  ) {
-    cens_mg <- id <- pseudo_outcome <- q_prediction <- inverse_cumulative_probability_weights <- time_0 <- protocol_follow <- q_pred_u <- protocol_follow <- pseudo_outcome_unweighted_u <- pseudo_outcome_unweighted <- ipcw_u <- type <- time <- q_diff <- surv <- Lambda_minus <- Lambda_C_minus <- Lambda_C <- integrand <- surv_cens <- Lambda_C_diff <- mg_counting_term <- mg_lambda_term <- ipw_cum_weight <- pseudo_outcome_u <- hazard_prev <- . <- NULL
-
     ## ------------------------------------------------------------------
     ## 0. Checks
     ## ------------------------------------------------------------------

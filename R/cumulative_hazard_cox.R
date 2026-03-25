@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (16:29) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (11:47) 
+## Last-Updated: Mar 25 2026 (13:06) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 119
+##     Update #: 120
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -16,7 +16,6 @@
 ### Code:
 
 cumulative_hazard_cox <- function(fit, data, covariate_data, time_variable = "time",  time_ref = NULL){
-    hazard <- hazard_minus <- Lambda <- exp_lp <- Lambda_minus <- hazard_prev <- exact_match <- hazard_time_ref <- NULL
     fit$coefficients[is.na(fit$coefficients)] <- 0 ## Force Brice's functions to behave
     ## Find exp(LP); i.e., exponential of linear predictor
     exp_lp_dt <- data.table(id = covariate_data$id)

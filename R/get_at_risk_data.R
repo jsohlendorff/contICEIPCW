@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:52) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (12:56) 
+## Last-Updated: Mar 25 2026 (13:06) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 9
+##     Update #: 10
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -17,9 +17,7 @@
 
 get_at_risk_data <- function(data,
                              k,
-                             time_horizon = NULL) {
-    event_k_previous <- time_previous <- time_k <- time_k_prev_1 <- time_j <- event_j <- event_k <- time_k_prev <- event_k_prev <- NULL
-    
+                             time_horizon = NULL) {    
     ## Create shortcuts for the k'th iteration
     set(
         data,
