@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (18:35) 
+## Last-Updated: Mar 30 2026 (16:33) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 407
+##     Update #: 410
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -330,7 +330,7 @@ propensity_scores <- function(prepared_data,
         set(data, j = "propensity_0", value = 1)
 
     } else {
-
+        baseline_covariates <- setdiff(baseline_covariates, "A_0")
         keep <- !vapply(
             data[, ..baseline_covariates],
             function(x) length(unique(x)) <= 1,
