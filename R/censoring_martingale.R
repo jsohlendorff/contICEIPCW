@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (18:29) 
+## Last-Updated: Mar 31 2026 (10:20) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 528
+##     Update #: 531
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -30,7 +30,8 @@ censoring_martingale <- function(data_censoring,
                                  grid_size,
                                  marginal_censoring_fit,
                                  data,
-                                 static_intervention
+                                 static_intervention,
+                                 reduce_colinearity_time
                                  ) {
     ## ------------------------------------------------------------------
     ## 0. Checks
@@ -181,7 +182,9 @@ censoring_martingale <- function(data_censoring,
                 baseline_covariates = baseline_covariates,
                 type = "pseudo_outcome",
                 penalize = penalize_pseudo_outcome,
-                verbose = FALSE
+                verbose = FALSE,
+                reduce_colinearity_time = reduce_colinearity_time,
+                time_horizon = time_horizon
             )
 
             set(dt, j = "q_pred_u", value = q_fit(dt))

@@ -1099,3 +1099,55 @@ test_that("test continuous time function (multiple time_horizons; comparisons)",
                                   )
     expect_true(all.equal(res, correct_result, tolerance = 1e-8))
 })
+
+test_that("test continuous time function (reduce colinearity time)", {
+    library(survival)
+    library(data.table)
+    library(riskRegression)
+
+    set.seed(34)
+    # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = FALSE,
+        uncensored = FALSE
+    )
+
+    set.seed(65)
+    prep_data <- prepare_data(
+        data = data_continuous,
+        time_horizons = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph",
+        penalize_hazard = FALSE,
+        verbose = FALSE,
+        reduce_colinearity_time = TRUE
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        model_pseudo_outcome = "oipcw_expit",
+        model_hazard = "learn_coxph",
+        conservative = TRUE,
+        verbose = FALSE,
+        reduce_colinearity_time = TRUE
+    )
+
+    correct_result <- data.table::data.table(
+                                      estimate = 0.2847639451171848,
+                                      se = 0.01684741059880183,
+                                      lower = 0.2517430203435332,
+                                      upper = 0.3177848698908364,
+                                      ice_ipcw_estimate = 0.28466287527346895,
+                                      ipw = 0.28495738884128674,
+                                      time_horizon = 720
+                                  )
+    expect_true(all.equal(result, correct_result, tolerance = 1e-8))
+})

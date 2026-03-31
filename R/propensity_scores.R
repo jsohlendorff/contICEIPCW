@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 30 2026 (16:33) 
+## Last-Updated: Mar 31 2026 (11:28) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 410
+##     Update #: 417
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -66,6 +66,7 @@ propensity_scores <- function(prepared_data,
                               lag = NULL,
                               static_intervention = 1,
                               exclude_latest_covariate = NULL,
+                              reduce_colinearity_time = FALSE,
                               verbose = FALSE) {
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
@@ -307,7 +308,8 @@ propensity_scores <- function(prepared_data,
                     type = "propensity",
                     penalize = penalize_treatment,
                     exclude_latest_covariate = exclude_latest_covariate,
-                    verbose = verbose
+                    verbose = verbose,
+                    reduce_colinearity_time = reduce_colinearity_time
                 )
 
                 set(data, i = rowsA, j = pcol, value = preds)

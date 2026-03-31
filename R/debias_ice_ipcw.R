@@ -93,7 +93,8 @@ debias_ice_ipcw <- function(
     grid_size = NULL,
     lag = NULL,
     verbose = FALSE,
-    tmle_update = FALSE
+    tmle_update = FALSE,
+    reduce_colinearity_time = FALSE
 ) {
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop(
@@ -221,7 +222,9 @@ debias_ice_ipcw <- function(
                 baseline_covariates = baseline_covariates,
                 type = "pseudo_outcome",
                 penalize = penalize_pseudo_outcome,
-                verbose = verbose
+                verbose = verbose,
+                reduce_colinearity_time = reduce_colinearity_time,
+                time_horizon = th
             )
 
             # Predict q_k under intervention
@@ -264,7 +267,8 @@ debias_ice_ipcw <- function(
                     grid_size,
                     marginal_censoring_fit,
                     data,
-                    static_intervention
+                    static_intervention,
+                    reduce_colinearity_time
                 )
             } else {
                 ic_final <- data[, .(id, ipw_cum_weight)][

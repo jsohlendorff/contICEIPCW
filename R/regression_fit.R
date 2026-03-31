@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:42) 
 ## Version: 
-## Last-Updated: Mar 19 2026 (10:06) 
+## Last-Updated: Mar 31 2026 (11:00) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 13
+##     Update #: 84
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -29,7 +29,9 @@ regression_fit <- function(data,
                            type = "propensity",
                            penalize,
                            exclude_latest_covariate,
-                           verbose) {
+                           verbose,
+                           reduce_colinearity_time = FALSE,
+                           time_horizon = NULL) {
        if (use_history_of_variables) {
            covariates <- get_history_of_variables(
                 data = data,
@@ -41,11 +43,39 @@ regression_fit <- function(data,
                 exclude_latest_covariate = exclude_latest_covariate
             )
        }
+       if (reduce_colinearity_time) {
+           ## Avoid changing the original data by reference when modifying it for decolinearization
+           ## FIXME: This is a bit hacky and may be slow.
+           data <- copy(data)
+           decolinearize_time <- function(data, k, type, time_horizon) {
+               res <- list()
+               if (type == "pseudo_outcome") {
+                   if (k>1) {
+                   res[[k-1]] <- time_horizon - data[[paste0("time_", k-1)]]
+                   for (j in seq_len(k-2)) {
+                       res[[j]] <- data[[paste0("time_", j)]] - data[[paste0("time_", j-1)]]
+                   }
+                   for (j in seq_len(k-1)) {
+                       set(data, j = paste0("time_", j), value = res[[j]])
+                   }
+                   }
+               } else {
+                   for (j in seq_len(k)) {
+                       res[[j]] <- data[[paste0("time_", j)]] - data[[paste0("time_", j-1)]]
+                   }
+                   for (j in seq_len(k)) {
+                       set(data, j = paste0("time_", j), value = res[[j]])
+                   }
+               }
+               return(data)
+           }
+           data <- decolinearize_time(data, k, type, time_horizon)
+       }
        
         withCallingHandlers(
         {
             if (type == "pseudo_outcome") {
-                learn_Q(
+                fit <- learn_Q(
                     model_type = model_regression,
                     history_of_variables = covariates,
                     data_learn = data,
@@ -63,7 +93,7 @@ regression_fit <- function(data,
                     paste(covariates, collapse = "+")
                 )
                 if (verbose) message("Fitting propensity score model with formula: ", formula_propensity)
-                do.call(model_regression, list(character_formula = formula_propensity, data = data, penalize = penalize))
+                fit <- do.call(model_regression, list(character_formula = formula_propensity, data = data, penalize = penalize))
             } else {
                 stop("Unsupported regression type: ", type)
             }
@@ -75,6 +105,17 @@ regression_fit <- function(data,
             if (verbose) message("Warning in fitting regression model: ", w, "with outcome: ", outcome_string, " and covariates: ", paste(covariates, collapse = ", "), " and type: ", type)
         }
         )
+
+       if (reduce_colinearity_time && type == "pseudo_outcome") {
+           predict_fun <- function(newdata) {
+               newdata <- copy(newdata)
+               newdata <- decolinearize_time(newdata, k, type, time_horizon)
+               fit(newdata)
+             }
+            return(predict_fun)
+       } else {
+            return(fit)
+        }
 }
 
 ######################################################################
