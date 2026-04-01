@@ -13,6 +13,7 @@ propensity_scores(
   lag = NULL,
   static_intervention = 1,
   exclude_latest_covariate = NULL,
+  reduce_colinearity_time = FALSE,
   verbose = FALSE
 )
 }
@@ -34,6 +35,8 @@ Options include \code{"learn_coxph"} (Cox proportional hazards model).}
 \item{static_intervention}{Numeric value indicating the treatment level for the static intervention (default is 1).}
 
 \item{exclude_latest_covariate}{Optional character vector of covariate names to exclude the latest value of in the propensity score models.}
+
+\item{reduce_colinearity_time}{Logical; if \code{TRUE}, reduces colinearity in the regression for treatment by using increments of event times. Default is \code{FALSE}.}
 
 \item{verbose}{Logical; if \code{TRUE}, prints additional information during model fitting.}
 }

@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Mar 31 2026 (11:28) 
+## Last-Updated: Apr  1 2026 (11:54) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 417
+##     Update #: 419
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -27,6 +27,7 @@
 #' @param penalize_hazard Logical; if \code{TRUE}, applies L1 regularization to the hazard model.
 #' @param static_intervention Numeric value indicating the treatment level for the static intervention (default is 1).
 #' @param exclude_latest_covariate Optional character vector of covariate names to exclude the latest value of in the propensity score models.
+#' @param reduce_colinearity_time Logical; if \code{TRUE}, reduces colinearity in the regression for treatment by using increments of event times. Default is \code{FALSE}.
 #'
 #' @export
 #' @examples

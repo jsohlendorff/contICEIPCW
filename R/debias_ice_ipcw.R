@@ -25,6 +25,7 @@
 #' @param tmle_update Whether to update the discrete part of the efficient influence function via a TMLE-step instead of one-step.
 #' @param penalize_pseudo_outcome Logical; if \code{TRUE}, applies L1-penalization to the regression for the pseudo-outcome. Default is \code{FALSE}.
 #' @param penalize_hazard Logical; if \code{TRUE}, applies L1-penalization to the regression for the hazard. Default is \code{FALSE}.
+#' @param reduce_colinearity_time Logical; if \code{TRUE}, reduces colinearity in the regression for the pseudo-outcome by using increments of event times. Default is \code{FALSE}.
 #'
 #' @return A named vector containing the following elements:
 #' `estimate` - the estimated mean interventional absolute risk at time \code{time_horizon} (debiased)
@@ -295,6 +296,21 @@ debias_ice_ipcw <- function(
                             0
                         }
                     )
+                    estimating_equation_tmle_step <- function(epsilon, ipw, pseudo_outcome,q_pred) {
+                        as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilonhat * ic_final$ipw_cum_weight)))
+                    }
+                    g_val <- estimating_equation_tmle_step(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
+                    if (is.na(g_val) || is.null(g_val)) {
+                        warning("TMLE update failed to compute estimating equation value; No TMLE update performed for this iteration.")
+                        epsilonhat <- 0
+                    } else if (abs(g_val) > 1e-1) {
+                        warning("TMLE update did not solve the estimating equation with value = ", g_val, "\n. Not updating with TMLE step for this iteration.")
+                        epsilonhat <- 0
+                    }
+                    ## nleqslv::nleqslv(f = g2, x = 0, )
+                    ## nleqslv::nleqslv(f = g2, x = 0, ipw = ic_final$ipw_cum_weight, pseudo_outcome = ic_final$pseudo_outcome, q_pred = ic_final$q_prediction, control = list(maxit = 1000, allowSingular = TRUE))$x
+                ##  g2(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
+                    ## browser()
 
                     q_new <- expit(
                         logit(ic_final$q_prediction) +

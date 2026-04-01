@@ -23,5 +23,5 @@ utils::globalVariables(c(
   "ipw_cum_weight", "last_event", "n_A_events", "n_L_events",
   "new_A", "pseudo_outcome", "protocol_follow", "q_pred_u",
   "q_prediction", "surv", "terminal_time", "time", "time_horizon",
-  "time_k_prev", "type", ".", "..baseline_covariates"
+  "time_k_prev", "type", ".", "..baseline_covariates", "q_diff", "q_prediction_prev"
 ))

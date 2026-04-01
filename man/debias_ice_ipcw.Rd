@@ -19,7 +19,8 @@ debias_ice_ipcw(
   grid_size = NULL,
   lag = NULL,
   verbose = FALSE,
-  tmle_update = FALSE
+  tmle_update = FALSE,
+  reduce_colinearity_time = FALSE
 )
 }
 \arguments{
@@ -59,6 +60,8 @@ Default is \code{TRUE}.}
 \item{verbose}{Logical; if \code{TRUE}, prints additional information during the execution.}
 
 \item{tmle_update}{Whether to update the discrete part of the efficient influence function via a TMLE-step instead of one-step.}
+
+\item{reduce_colinearity_time}{Logical; if \code{TRUE}, reduces colinearity in the regression for the pseudo-outcome by using increments of event times. Default is \code{FALSE}.}
 }
 \value{
 A named vector containing the following elements:
