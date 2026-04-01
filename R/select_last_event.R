@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (12:26) 
 ## Version: 
-## Last-Updated: Mar 31 2026 (11:30) 
+## Last-Updated: Apr  1 2026 (20:55) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 107
+##     Update #: 108
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -36,6 +36,9 @@ select_last_event <- function(timevarying_data, time_horizons, last_non_terminal
                 }
             }
         }
+    } else {
+        stopifnot(length(last_non_terminal_event) == 1)
+        last_non_terminal_event <- rep(last_non_terminal_event, length(time_horizons))
     }
 
     ## We should only start at the last event at which there is a terminal events, otherwise the iterative regression would just be regressing zero outcomes

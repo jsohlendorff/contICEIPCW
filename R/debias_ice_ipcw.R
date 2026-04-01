@@ -278,6 +278,9 @@ debias_ice_ipcw <- function(
                 ]
 
                 if (tmle_update) {
+                    estimating_equation_tmle_step <- function(epsilon, ipw, pseudo_outcome,q_pred) {
+                        as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilon * ic_final$ipw_cum_weight)))
+                    }
                     epsilonhat <- tryCatch(
                         estimating_equation_cpp(
                             X = as.matrix(ic_final$ipw_cum_weight),
@@ -295,10 +298,8 @@ debias_ice_ipcw <- function(
                             }
                             0
                         }
-                    )
-                    estimating_equation_tmle_step <- function(epsilon, ipw, pseudo_outcome,q_pred) {
-                        as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilonhat * ic_final$ipw_cum_weight)))
-                    }
+                    ) 
+                    ## epsilonhat <- nleqslv::nleqslv(f = estimating_equation_tmle_step, x = 0, ipw = ic_final$ipw_cum_weight, pseudo_outcome = ic_final$pseudo_outcome, q_pred = ic_final$q_prediction, control = list(maxit = 1000, allowSingular = TRUE))$x
                     g_val <- estimating_equation_tmle_step(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
                     if (is.na(g_val) || is.null(g_val)) {
                         warning("TMLE update failed to compute estimating equation value; No TMLE update performed for this iteration.")
@@ -307,11 +308,6 @@ debias_ice_ipcw <- function(
                         warning("TMLE update did not solve the estimating equation with value = ", g_val, "\n. Not updating with TMLE step for this iteration.")
                         epsilonhat <- 0
                     }
-                    ## nleqslv::nleqslv(f = g2, x = 0, )
-                    ## nleqslv::nleqslv(f = g2, x = 0, ipw = ic_final$ipw_cum_weight, pseudo_outcome = ic_final$pseudo_outcome, q_pred = ic_final$q_prediction, control = list(maxit = 1000, allowSingular = TRUE))$x
-                ##  g2(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
-                    ## browser()
-
                     q_new <- expit(
                         logit(ic_final$q_prediction) +
                         epsilonhat * ic_final$ipw_cum_weight

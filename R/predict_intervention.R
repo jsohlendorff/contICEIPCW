@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:50) 
 ## Version: 
-## Last-Updated: Apr  1 2026 (11:46) 
+## Last-Updated: Apr  1 2026 (12:56) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 10
+##     Update #: 11
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -38,7 +38,7 @@ predict_intervention <- function(data, k, predict_fun, static_intervention, verb
   ## Check if the predictions are in the range [0,1] if so warn and truncate
   if (any(f < 0 | f > 1)) {
     if (verbose) {
-      warning("Predictions contain values outside the range [0, 1]. Truncating to [0, 1].")
+      message("Predictions contain values outside the range [0, 1]. Truncating to [0, 1].")
     }
     f <- pmin(pmax(f, 0), 1)
   }
