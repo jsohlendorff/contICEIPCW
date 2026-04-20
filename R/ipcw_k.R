@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (22:54) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (14:44) 
+## Last-Updated: Apr 20 2026 (15:53) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 70
+##     Update #: 71
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -17,6 +17,9 @@
 
 ipcw_k <- function(data, k, marginal_censoring_fit, time_horizon, is_censored, fast_ipcw = FALSE, survival_function) {
     ## FIXME: error when the pseudo outcome model is a weighted glm and marginal censoring is not assumed.
+    if (!is_censored) {
+        return(rep(1, nrow(data)))
+    }
     if (is.null(marginal_censoring_fit)) {
         fast_ipcw <- TRUE
     }
