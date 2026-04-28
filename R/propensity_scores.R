@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Apr 28 2026 (11:56) 
+## Last-Updated: Apr 28 2026 (12:25) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 453
+##     Update #: 459
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -363,12 +363,16 @@ propensity_scores <- function(prepared_data,
             verbose = verbose
         )
 
-        set(data, j = "propensity_0", value = preds0)
-
         set(data, j = "A_0_var", value = NULL)
 
-        if (any(is.na(data$propensity_0) | data$propensity_0 == 0)) {
-            stop("NA or zero values in baseline propensity scores.")
+        if (any(preds0)) {
+            stop("NA values in baseline propensity scores.")
+        }
+        
+        if (!is.null(gbound)) {
+            set(data, j = pcol, value = pmax(preds0, gbound))
+        } else {
+            set(data, j = pcol, value = preds0)
         }
     }
 
