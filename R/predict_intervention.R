@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:50) 
 ## Version: 
-## Last-Updated: Apr 24 2026 (13:05) 
+## Last-Updated: Apr 28 2026 (12:08) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 16
+##     Update #: 26
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -16,23 +16,34 @@
 ### Code:
 
 ## Wrapper function to predict the outcome under an intervention
-predict_intervention <- function(data, k, predict_fun, static_intervention, verbose, intervention_hook) {
+predict_intervention <- function(data, k, predict_fun, static_intervention, verbose, intervention_hook, intervene_all_sequential_regression) {
   intervened_data <- copy(data)
-  if (k > 0) {
-    which_event_A <- which(intervened_data[[paste0("event_", k)]] == "A")
-      set(
-          intervened_data,
-          i = which_event_A,
-            j = paste0("A_", k),
-            value = static_intervention
-        )
+  if (!intervene_all_sequential_regression) {
+      if (k > 0) {
+          which_event_A <- which(intervened_data[[paste0("event_", k)]] == "A")
+          set(
+              intervened_data,
+              i = which_event_A,
+              j = paste0("A_", k),
+              value = static_intervention
+          )
+      } else {
+          set(
+              intervened_data,
+              j = "A_0",
+              value = static_intervention
+          )
+      } 
   } else {
-      set(
-            intervened_data,
-            j = "A_0",
-            value = static_intervention
-      )
+      for (j in 0:k){
+          set(
+              intervened_data,
+              j = paste0("A_", j),
+              value = static_intervention
+          )
+      }
   }
+  
   if (!is.null(intervention_hook)) {
     intervened_data <- intervention_hook(intervened_data, k)
   }

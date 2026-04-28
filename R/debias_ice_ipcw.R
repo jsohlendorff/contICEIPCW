@@ -27,6 +27,8 @@
 #' @param penalize_hazard Logical; if \code{TRUE}, applies L1-penalization to the regression for the hazard. Default is \code{FALSE}.
 #' @param reduce_colinearity_time Logical; if \code{TRUE}, reduces colinearity in the regression for the pseudo-outcome by using increments of event times. Default is \code{FALSE}.
 #' @param intervention_hook Optional function if intervention needs to be applied to other variables that depend on current treatment.
+#' @param stratify_sequential_regression Logical; if \code{TRUE}, stratifies on the people following protocol in sequential regression
+#' @param intervene_all_sequential_regression Logical; if \code{TRUE}, applies the intervention to all sequential regressions, including the regression for the pseudo-outcome. Default is \code{FALSE}.
 #'
 #' @return A named vector containing the following elements:
 #' `estimate` - the estimated mean interventional absolute risk at time \code{time_horizon} (debiased)
@@ -97,7 +99,9 @@ debias_ice_ipcw <- function(
     verbose = FALSE,
     tmle_update = FALSE,
     reduce_colinearity_time = FALSE,
-    intervention_hook = NULL
+    intervention_hook = NULL,
+    stratify_sequential_regression = FALSE,
+    intervene_all_sequential_regression = FALSE
 ) {
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop(
@@ -227,14 +231,15 @@ debias_ice_ipcw <- function(
                 penalize = penalize_pseudo_outcome,
                 verbose = verbose,
                 reduce_colinearity_time = reduce_colinearity_time,
-                time_horizon = th
+                time_horizon = th,
+                stratify_sequential_regression = stratify_sequential_regression
             )
 
             # Predict q_k under intervention
             set(
                 data_at_risk,
                 j = "q_prediction",
-                value = predict_intervention(data_at_risk, k-1, q_reg, static_intervention, verbose, intervention_hook)
+                value = predict_intervention(data_at_risk, k-1, q_reg, static_intervention, verbose, intervention_hook, intervene_all_sequential_regression)
             )
 
             # Store predictions for next iteration
@@ -368,7 +373,7 @@ debias_ice_ipcw <- function(
         }
 
         # Final estimates
-        pred_0 <- predict_intervention(data, 0, q_reg, static_intervention, verbose, intervention_hook)
+        pred_0 <- predict_intervention(data, 0, q_reg, static_intervention, verbose, intervention_hook, FALSE)
         g_formula_estimate <- data[, mean(pred_0)]
 
         ic <- data[, ic] + pred_0 - g_formula_estimate

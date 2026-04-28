@@ -21,7 +21,9 @@ debias_ice_ipcw(
   verbose = FALSE,
   tmle_update = FALSE,
   reduce_colinearity_time = FALSE,
-  intervention_hook = NULL
+  intervention_hook = NULL,
+  stratify_sequential_regression = FALSE,
+  intervene_all_sequential_regression = FALSE
 )
 }
 \arguments{
@@ -65,6 +67,10 @@ Default is \code{TRUE}.}
 \item{reduce_colinearity_time}{Logical; if \code{TRUE}, reduces colinearity in the regression for the pseudo-outcome by using increments of event times. Default is \code{FALSE}.}
 
 \item{intervention_hook}{Optional function if intervention needs to be applied to other variables that depend on current treatment.}
+
+\item{stratify_sequential_regression}{Logical; if \code{TRUE}, stratifies on the people following protocol in sequential regression}
+
+\item{intervene_all_sequential_regression}{Logical; if \code{TRUE}, applies the intervention to all sequential regressions, including the regression for the pseudo-outcome. Default is \code{FALSE}.}
 }
 \value{
 A named vector containing the following elements:

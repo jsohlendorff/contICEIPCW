@@ -95,6 +95,108 @@ test_that("test continuous time function (censored; conservative)", {
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
 
+
+test_that("test continuous time function (censored; conservative, intervene_all_sequential_regression)", {
+    library(survival)
+    library(data.table)
+    library(riskRegression)
+
+    set.seed(34)
+    # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = TRUE,
+        uncensored = FALSE
+    )
+
+    # Run debiased ICE-IPCW procedure
+    prep_data <- prepare_data(
+        data = data_continuous,
+        time_horizons = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = FALSE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
+        conservative = TRUE,
+        verbose = FALSE,
+        intervene_all_sequential_regression = TRUE
+    )
+
+    correct_result <- data.table::data.table(
+                                      estimate = 0.27042666855710473,
+                                      se = 0.01677307756052882,
+                                      lower = 0.23755143653846825,
+                                      upper = 0.30330190057574125,
+                                      ice_ipcw_estimate = 0.2715374676034445,
+                                      ipw = 0.26932434652272763,
+                                      time_horizon = 720
+                                  )
+    expect_true(all.equal(result, correct_result, tolerance = 1e-8))
+})
+
+
+
+test_that("test continuous time function (censored; conservative, stratify)", {
+    library(survival)
+    library(data.table)
+    library(riskRegression)
+
+    set.seed(34)
+    # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = TRUE,
+        uncensored = FALSE
+    )
+
+    # Run debiased ICE-IPCW procedure
+    prep_data <- prepare_data(
+        data = data_continuous,
+        time_horizons = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = FALSE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+
+    # Run debiased ICE-IPCW procedure
+    result <- debias_ice_ipcw(
+        prepared_data = altered_data,
+        model_pseudo_outcome = "scaled_quasibinomial",
+        model_hazard = "learn_coxph",
+        conservative = TRUE,
+        verbose = FALSE,
+        stratify_sequential_regression = TRUE
+    )
+
+    correct_result <- data.table::data.table(
+                                      estimate = 0.27018370034367295,
+                                      se = 0.016761809897687625,
+                                      lower = 0.23733055294420521,
+                                      upper = 0.30303684774314066,
+                                      ice_ipcw_estimate = 0.2712122534140999,
+                                      ipw = 0.26932434652272763,
+                                      time_horizon = 720
+                                  )
+    expect_true(all.equal(result, correct_result, tolerance = 1e-8))
+})
+
+
 test_that("test continuous time function (censored; conservative; marginal_censoring_hazard)", {
     library(survival)
     library(data.table)
