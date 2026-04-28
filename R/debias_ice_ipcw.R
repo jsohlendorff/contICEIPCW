@@ -26,6 +26,7 @@
 #' @param penalize_pseudo_outcome Logical; if \code{TRUE}, applies L1-penalization to the regression for the pseudo-outcome. Default is \code{FALSE}.
 #' @param penalize_hazard Logical; if \code{TRUE}, applies L1-penalization to the regression for the hazard. Default is \code{FALSE}.
 #' @param reduce_colinearity_time Logical; if \code{TRUE}, reduces colinearity in the regression for the pseudo-outcome by using increments of event times. Default is \code{FALSE}.
+#' @param intervention_hook Optional function if intervention needs to be applied to other variables that depend on current treatment.
 #'
 #' @return A named vector containing the following elements:
 #' `estimate` - the estimated mean interventional absolute risk at time \code{time_horizon} (debiased)
@@ -95,7 +96,8 @@ debias_ice_ipcw <- function(
     lag = NULL,
     verbose = FALSE,
     tmle_update = FALSE,
-    reduce_colinearity_time = FALSE
+    reduce_colinearity_time = FALSE,
+    intervention_hook = NULL
 ) {
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop(
@@ -232,7 +234,7 @@ debias_ice_ipcw <- function(
             set(
                 data_at_risk,
                 j = "q_prediction",
-                value = predict_intervention(data_at_risk, k-1, q_reg, static_intervention, verbose)
+                value = predict_intervention(data_at_risk, k-1, q_reg, static_intervention, verbose, intervention_hook)
             )
 
             # Store predictions for next iteration
@@ -366,7 +368,7 @@ debias_ice_ipcw <- function(
         }
 
         # Final estimates
-        pred_0 <- predict_intervention(data, 0, q_reg, static_intervention, verbose)
+        pred_0 <- predict_intervention(data, 0, q_reg, static_intervention, verbose, intervention_hook)
         g_formula_estimate <- data[, mean(pred_0)]
 
         ic <- data[, ic] + pred_0 - g_formula_estimate

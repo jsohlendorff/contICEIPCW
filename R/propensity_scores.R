@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Apr  1 2026 (11:54) 
+## Last-Updated: Apr 28 2026 (11:56) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 419
+##     Update #: 453
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -28,6 +28,7 @@
 #' @param static_intervention Numeric value indicating the treatment level for the static intervention (default is 1).
 #' @param exclude_latest_covariate Optional character vector of covariate names to exclude the latest value of in the propensity score models.
 #' @param reduce_colinearity_time Logical; if \code{TRUE}, reduces colinearity in the regression for treatment by using increments of event times. Default is \code{FALSE}.
+#' @param gbound Optional numeric value for lower bounding the propensity scores to avoid extreme weights. If \code{NULL}, no bounding is applied.
 #'
 #' @export
 #' @examples
@@ -68,6 +69,7 @@ propensity_scores <- function(prepared_data,
                               static_intervention = 1,
                               exclude_latest_covariate = NULL,
                               reduce_colinearity_time = FALSE,
+                              gbound = NULL,
                               verbose = FALSE) {
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
@@ -200,8 +202,11 @@ propensity_scores <- function(prepared_data,
 
                     pred <- exp(-data_use2$Lambda_minus)
 
-                    if (any(is.na(pred)) || any(pred == 0)) {
-                        stop("NA or zero values for IPCW.")
+                    if (any(is.na(pred))) {
+                        stop("NA values for IPCW.")
+                    }
+                    if (any(pred == 0)) {
+                        stop("Zero values for IPCW.")
                     }
 
                     pred
@@ -312,14 +317,14 @@ propensity_scores <- function(prepared_data,
                     verbose = verbose,
                     reduce_colinearity_time = reduce_colinearity_time
                 )
-
-                set(data, i = rowsA, j = pcol, value = preds)
-
                 set(data, j = varcol, value = NULL)
-
-                if (any(is.na(data[rowsA][[pcol]]) |
-                        data[rowsA][[pcol]] == 0)) {
-                    stop("NA or zero values in propensity scores for event ", k)
+                if (any(is.na(preds))) {
+                    stop("NA in propensity scores for event ", k)
+                }
+                if (!is.null(gbound)) {
+                    set(data, i = rowsA, j = pcol, value = pmax(data[rowsA][[pcol]], gbound))
+                } else {
+                    set(data, i = rowsA, j = pcol, value = preds)
                 }
             }
         }
