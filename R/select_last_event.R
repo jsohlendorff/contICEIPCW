@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (12:26) 
 ## Version: 
-## Last-Updated: Apr  1 2026 (20:55) 
+## Last-Updated: Apr 30 2026 (17:36) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 108
+##     Update #: 113
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -42,7 +42,14 @@ select_last_event <- function(timevarying_data, time_horizons, last_non_terminal
     }
 
     ## We should only start at the last event at which there is a terminal events, otherwise the iterative regression would just be regressing zero outcomes
-    max_event_number_outcome <- lapply(time_horizons, function(x) timevarying_data[time <= x & event %in% "Y", .(max(event_number))]$V1)
+    max_event_number_outcome <- lapply(time_horizons, function(x) {
+        dt <- timevarying_data[time <= x & event == "Y"]
+        if (nrow(dt) == 0) {
+            return(0)
+        } else {
+            return(dt[,.(max(event_number))]$V1)
+        }
+    })
 
     timevarying_data <- timevarying_data[event_number <= last_non_terminal_event[[which(max_time_horizon == time_horizons)]] | !(event %in% c("A", "L"))]
     timevarying_data <- timevarying_data[, event_number := seq_len(.N), by = id]

@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Apr  1 2026 (11:50) 
+## Last-Updated: Apr 30 2026 (20:47) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 108
+##     Update #: 182
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -186,42 +186,43 @@ learn_Q <- function(model_type,
            fit <<- beta_init
        })
 
-
-       check_if_failed <- function(fit, g, X, Y, verbose, ignore_large_solution = FALSE, name = "cpp") {
+       check_if_failed <- function(fit, g, X, Y, beta_init, verbose,
+                                   ignore_large_solution = FALSE, name = "cpp") {
            failed <- FALSE
            warnings_list <- character(0)
 
-           ## Check for NAs or NULL in solution
-           if (any(is.na(fit)) || any(is.null(fit))) {
-               if (verbose) warnings_list <- c(warnings_list, paste("The estimating equation solver did not converge for method", name, "and returned NA or NULL values."))
-               fit <- beta_init
-               failed <- TRUE
-           }
-           
-           ## Check if the solution is very large or if the estimating equation does not seem to be solved
-           if (any(abs(fit) > 1e2) && !ignore_large_solution) {
-               if (verbose) {
+           if (is.null(fit) || !is.numeric(fit) || anyNA(fit) || any(!is.finite(fit))) {
+               if (verbose)
                    warnings_list <- c(warnings_list,
-                                      paste0("The solution of the estimating equation solver is very large for ", name ,": ", paste(round(fit, 4), collapse = ", "), "\n",
-                                             "This may indicate non-convergence or a problem with the estimating equation.")) 
-               }
+                                      paste("Solver failed for", name, "(NA / non-finite / invalid fit)."))
+               return(list(
+                   failed = TRUE,
+                   warnings = warnings_list,
+                   g_val = NA_real_,
+                   fit = beta_init
+               ))
+           }
+
+           if (any(abs(fit) > 1e2) && !ignore_large_solution) {
                failed <- TRUE
            }
 
-           g_val <- g(fit, X, Y)
-           if (any(abs(g_val) > 1e-2)){
-               if (verbose) {
-                   warnings_list <- c(warnings_list,
-                                      paste0("The estimating equation does not seem to be solved which may indicate non-convergence for ", name, ". \n",
-                                             "The value of the estimating equation at the solution is: ", paste(round(g_val, 4), collapse = ", ")))
-               }
+           g_val <- tryCatch(as.numeric(g(fit, X, Y)), error = function(e) NULL)
+
+           if (is.null(g_val) || anyNA(g_val) || any(!is.finite(g_val))) {
+               failed <- TRUE
+               g_val <- NA_real_
+           } else if (any(abs(g_val) > 1e-2)) {
                failed <- TRUE
            }
-           return(list(failed = failed, warnings = warnings_list, g_val = g_val))
+
+           list(failed = failed, warnings = warnings_list, g_val = g_val, fit = fit)
        }
-       check_fit <- check_if_failed(fit, g, X, Y, verbose)
+       check_fit <- check_if_failed(fit, g, X, Y, beta_init, verbose)
        failed <- check_fit$failed
        warnings_fit <- check_fit$warnings
+       fit <- check_fit$fit
+       g_val <- check_fit$g_val
        
        if (failed){
            if (grepl("oipcw", model_type) && requireNamespace("nleqslv", quietly = TRUE)) {
@@ -237,17 +238,19 @@ learn_Q <- function(model_type,
                check_fit_nleqslv <- check_if_failed(fit_nleqslv, g, X, Y, verbose, ignore_large_solution = TRUE, name = "nleqslv")
                warning_nleqslv <- check_fit_nleqslv$warnings
                failed_nleqslv <- check_fit_nleqslv$failed
+               fit_nleqslv <- check_fit_nleqslv$fit
+               g_val_nleqslv <- check_fit_nleqslv$g_val
                
                if (!failed_nleqslv) {
                    fit <- fit_nleqslv
                    if (verbose) message("nleqslv successfully solved the estimating equation.")
-               } else {
+               } else if (!any(is.na(g_val)) && !any(is.na(g_val_nleqslv))) {
                    warning("cpp and nleqslv solvers failed to solve the estimating equation. Picking the best solution among, beta_init, fit, and fit_nleqslv based on the value of the estimating equation.")
-                   values <- sapply(list(beta_init, fit, fit_nleqslv), function(beta) sum(g(beta, X, Y)^2))
+                   g_val_beta_init <- tryCatch(as.numeric(g(beta_init, X, Y)), error = function(e) NA_real_, warning = function(w) NA_real_)
+                   values <- lapply(list(g_val_beta_init, g_val, g_val_nleqslv), function(x) sum(x^2))
                    best_index <- which.min(values)
-                   ## best_index_format
                    
-                   if (verbose) message("Winner: ", c("beta_init", "cpp_fit", "nleqslv_fit")[best_index], " with value of estimating equation function: ", round(values[best_index],4))
+                   ## if (verbose) message("Winner: ", c("beta_init", "cpp_fit", "nleqslv_fit")[best_index], " with value of estimating equation function: ", round(values[best_index],4))
                    fit <- list(beta_init, fit, fit_nleqslv)[[best_index]]
                    if (verbose) {
                        message("Possible issues: \n")
@@ -258,6 +261,10 @@ learn_Q <- function(model_type,
                            message(w)
                        }
                        message("\n")
+                   }
+                   else {
+                       warning("cpp and nleqslv solvers failed to solve the estimating equation and the value of the estimating equation function is NA for both solutions. Picking beta_init as the solution. \n ")
+                       fit <- beta_init
                    }
                }
            } else {

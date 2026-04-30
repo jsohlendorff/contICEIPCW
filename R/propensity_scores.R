@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Apr 28 2026 (12:25) 
+## Last-Updated: Apr 28 2026 (13:29) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 459
+##     Update #: 462
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -370,9 +370,9 @@ propensity_scores <- function(prepared_data,
         }
         
         if (!is.null(gbound)) {
-            set(data, j = pcol, value = pmax(preds0, gbound))
+            set(data, j = "propensity_0", value = pmax(preds0, gbound))
         } else {
-            set(data, j = pcol, value = preds0)
+            set(data, j = "propensity_0", value = preds0)
         }
     }
 

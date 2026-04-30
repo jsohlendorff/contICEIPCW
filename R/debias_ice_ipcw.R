@@ -308,17 +308,17 @@ debias_ice_ipcw <- function(
                     ) 
                     ## epsilonhat <- nleqslv::nleqslv(f = estimating_equation_tmle_step, x = 0, ipw = ic_final$ipw_cum_weight, pseudo_outcome = ic_final$pseudo_outcome, q_pred = ic_final$q_prediction, control = list(maxit = 1000, allowSingular = TRUE))$x
                     g_val <- estimating_equation_tmle_step(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
-                    if (is.na(g_val) || is.null(g_val)) {
+                    if (is.null(g_val) || length(g_val) != 1 || !is.finite(g_val)) {
                         warning("TMLE update failed to compute estimating equation value; No TMLE update performed for this iteration.")
-                        epsilonhat <- 0
+                        q_new <- ic_final$q_prediction
                     } else if (abs(g_val) > 1e-1) {
                         warning("TMLE update did not solve the estimating equation with value = ", g_val, "\n. Not updating with TMLE step for this iteration.")
-                        epsilonhat <- 0
+                        q_new <- ic_final$q_prediction
+                    } else {
+                        q_new <- expit(
+                            logit(ic_final$q_prediction) +
+                            epsilonhat * ic_final$ipw_cum_weight)
                     }
-                    q_new <- expit(
-                        logit(ic_final$q_prediction) +
-                        epsilonhat * ic_final$ipw_cum_weight
-                    )
 
                     set(
                         ic_final,

@@ -41,7 +41,7 @@ considered baseline (time-invariant) covariates. Must include treatment and time
 
 \item{marginal_censoring}{Logical; if \code{TRUE}, assumes censoring depends only on baseline covariates.}
 
-\item{min_events}{Numeric; data-adaptive threshold for selecting last event number if \code{last_non_terminal_event} is not provided.}
+\item{min_events}{Numeric; data-adaptive threshold for selecting last event number if \code{last_non_terminal_event} is not provided. Default is 40.}
 
 \item{last_non_terminal_event}{Optional numeric indicating the last nonterminal event number to consider
 in the outcome.}

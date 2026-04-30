@@ -1,11 +1,11 @@
-### prepare_data.R --- 
+''### prepare_data.R --- 
 #----------------------------------------------------------------------
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar  4 2026 (19:33) 
 ## Version: 
-## Last-Updated: Mar 25 2026 (15:04) 
+## Last-Updated: Apr 30 2026 (17:39) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 98
+##     Update #: 105
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -39,7 +39,7 @@
 #' @param last_non_terminal_event Optional numeric indicating the last nonterminal event number to consider
 #'   in the outcome.
 #' @param marginal_censoring Logical; if \code{TRUE}, assumes censoring depends only on baseline covariates.
-#' @param min_events Numeric; data-adaptive threshold for selecting last event number if \code{last_non_terminal_event} is not provided.
+#' @param min_events Numeric; data-adaptive threshold for selecting last event number if \code{last_non_terminal_event} is not provided. Default is 40.
 #' @param verbose Logical; if \code{TRUE}, prints messages about data-adaptive selection of last event number.
 #' @export
 #'
