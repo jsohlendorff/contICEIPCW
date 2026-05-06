@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: Apr 30 2026 (20:47) 
+## Last-Updated: May  6 2026 (11:37) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 182
+##     Update #: 204
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -31,8 +31,10 @@ learn_Q <- function(model_type,
                     ipcw_name = NULL,
                     penalize,
                     verbose,
-                    k) {
+                    k,
+                    save_coefficients = FALSE) {
     max_weight <- max(data_learn[[outcome_name]])
+    coefficients <- NULL
     if (is.null(max_weight) || is.na(max_weight)) {
         stop("The 'weight' column in data_learn must not be NULL or NA.")
     }
@@ -100,9 +102,13 @@ learn_Q <- function(model_type,
               predict_fun <- function(data) {
                 predict(fit, data, type = "response") * scale
               }
+              if (save_coefficients) {
+                  coefficients <- coef(fit)
+                  coefficients[is.na(coefficients)] <- 0
+              }
        } else {
            ## Use Lasso with glmnet
-           X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
+           X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)[,-1]
            y <- data_learn[["out"]]
            tryCatch({
                cv_fit <- glmnet::cv.glmnet(X, y, alpha = 1, weights = weights, family = family)
@@ -118,9 +124,14 @@ learn_Q <- function(model_type,
            
            fit <- glmnet::glmnet(X, y, alpha = 1, lambda = cv_fit$lambda.min, weights = weights, family = family)
               predict_fun <- function(data) {
-                X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)
+                X_new <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data)[, -1]
                 as.vector(predict(fit, newx = X_new, s = "lambda.min", type = "response"))
               }
+           if (save_coefficients) {
+               coefs <- coef(fit)
+               coefficients <- as.numeric(coefs)
+               names(coefficients) <- rownames(coefs)
+           }
        }
     } else if (model_type %in% c("oipcw_expit", "oipcw_probit", "nls_expit", "nls_probit")) {
        Y <- data_learn[[outcome_name]]
@@ -290,6 +301,10 @@ learn_Q <- function(model_type,
 
            link_function(X_new %*% fit)
        }
+       if (save_coefficients) {
+           coefficients <- fit
+           names(coefficients) <- colnames(X)
+       }
    } else {
        ## If flexible, we should pick argmin_(f in cal(F)) sum((Y - g(f(X)))^2, where Y are the outcome weights and g is either expit or probit.
        ## This ensures that predictions will be 0/1-valued.
@@ -301,8 +316,8 @@ learn_Q <- function(model_type,
                                                character_formula = formula_w,
                                                data = data_learn
                                            ))$predict_fun
-    }
-    predict_fun
+   }
+   return(list(predict_fun = predict_fun, coefficients = coefficients))
 }
 
 ######################################################################

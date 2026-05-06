@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:42) 
 ## Version: 
-## Last-Updated: Apr 28 2026 (12:19) 
+## Last-Updated: May  6 2026 (11:55) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 99
+##     Update #: 105
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -32,7 +32,8 @@ regression_fit <- function(data,
                            verbose,
                            reduce_colinearity_time = FALSE,
                            time_horizon = NULL,
-                           stratify_sequential_regression = FALSE) {
+                           stratify_sequential_regression = FALSE,
+                           save_coefficients = FALSE) {
     if (stratify_sequential_regression) {
         data <- data[data[[paste0("ipw_cum_weight_", k-1)]] != 0]
     }
@@ -89,7 +90,8 @@ regression_fit <- function(data,
                 ipcw_name = ipcw_name,
                 penalize = penalize,
                 verbose = verbose,
-                k
+                k,
+                save_coefficients = save_coefficients
             )
         } else if (type == "propensity") {
             formula_propensity <- paste0(
@@ -97,7 +99,7 @@ regression_fit <- function(data,
                 paste(covariates, collapse = "+")
             )
             if (verbose) message("Fitting propensity score model with formula: ", formula_propensity)
-            fit <- do.call(model_regression, list(character_formula = formula_propensity, data = data, penalize = penalize))
+            fit <- do.call(model_regression, list(character_formula = formula_propensity, data = data, penalize = penalize, save_coefficients = save_coefficients))
         } else {
             stop("Unsupported regression type: ", type)
         }
@@ -114,9 +116,9 @@ regression_fit <- function(data,
         predict_fun <- function(newdata) {
             newdata <- copy(newdata)
             newdata <- decolinearize_time(newdata, k, type, time_horizon)
-            fit(newdata)
+            fit$predict_fun(newdata)
         }
-        return(predict_fun)
+        return(list(predict_fun = predict_fun, coefficients = if (save_coefficients) fit$coefficients else NULL))
     } else {
         return(fit)
     }

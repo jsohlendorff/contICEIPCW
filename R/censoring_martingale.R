@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 27 2026 (15:06) 
 ## Version: 
-## Last-Updated: Mar 31 2026 (10:20) 
+## Last-Updated: May  6 2026 (11:53) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 531
+##     Update #: 532
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -185,7 +185,7 @@ censoring_martingale <- function(data_censoring,
                 verbose = FALSE,
                 reduce_colinearity_time = reduce_colinearity_time,
                 time_horizon = time_horizon
-            )
+            )$predict_fun
 
             set(dt, j = "q_pred_u", value = q_fit(dt))
         }

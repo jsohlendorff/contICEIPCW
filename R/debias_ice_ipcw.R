@@ -29,6 +29,7 @@
 #' @param intervention_hook Optional function if intervention needs to be applied to other variables that depend on current treatment.
 #' @param stratify_sequential_regression Logical; if \code{TRUE}, stratifies on the people following protocol in sequential regression
 #' @param intervene_all_sequential_regression Logical; if \code{TRUE}, applies the intervention to all sequential regressions, including the regression for the pseudo-outcome. Default is \code{FALSE}.
+#' @param save_coefficients If \code{TRUE}, saves the coefficients of the regression models used in the procedure. Default is \code{FALSE}.
 #'
 #' @return A named vector containing the following elements:
 #' `estimate` - the estimated mean interventional absolute risk at time \code{time_horizon} (debiased)
@@ -101,7 +102,8 @@ debias_ice_ipcw <- function(
     reduce_colinearity_time = FALSE,
     intervention_hook = NULL,
     stratify_sequential_regression = FALSE,
-    intervene_all_sequential_regression = FALSE
+    intervene_all_sequential_regression = FALSE,
+    save_coefficients = FALSE
 ) {
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop(
@@ -110,9 +112,10 @@ debias_ice_ipcw <- function(
         )
     }
 
-    marginal_censoring_fit <- prepared_data$marginal_censoring_fit
-    data_info              <- prepared_data$prepared_data_object
-    info                   <- data_info$info
+    marginal_censoring_fit        <- prepared_data$marginal_censoring_fit
+    data_info                     <- prepared_data$prepared_data_object
+    coefficients_propensity_score <- prepared_data$coefficients_propensity
+    info                          <- data_info$info
 
     if (is.null(time_horizons)) {
         time_horizons <- info$time_horizon
@@ -129,6 +132,12 @@ debias_ice_ipcw <- function(
 
     if (!fast_ipcw && !marginal_censoring) {
         stop("GLM-based IPCW models require marginal censoring.")
+    }
+
+    if (save_coefficients) {
+        coefficient_list <- list()
+    } else {
+        coefficient_list <- NULL
     }
 
     results <- list()
@@ -170,6 +179,10 @@ debias_ice_ipcw <- function(
             return_ipw,
             last_event
         )
+
+        if (save_coefficients) {
+            coefficient_list_tau <- list()
+        }
 
         # Backward iteration over events
         for (k in rev(seq_len(last_event))) {
@@ -232,8 +245,13 @@ debias_ice_ipcw <- function(
                 verbose = verbose,
                 reduce_colinearity_time = reduce_colinearity_time,
                 time_horizon = th,
-                stratify_sequential_regression = stratify_sequential_regression
+                stratify_sequential_regression = stratify_sequential_regression,
+                save_coefficients = save_coefficients,
             )
+            if (save_coefficients) {
+                coefficient_list_tau[[k]] <- q_reg$coefficients
+            }
+            q_reg <- q_reg$predict_fun
 
             # Predict q_k under intervention
             set(
@@ -402,13 +420,20 @@ debias_ice_ipcw <- function(
         if (return_ic) {
             ic_list[[v]] <- ic
         }
+
+        if (save_coefficients) {
+            coefficient_list[[paste0("time_horizon_", th)]] <- coefficient_list_tau
+        }
     }
 
     results <- rbindlist(results)
-
     if (!return_ic) {
+        ic <- NULL
+    }
+
+    if (!return_ic && !save_coefficients) {
         results
     } else {
-        list(results = results, ic = list(ic = ic_list, time_horizons = time_horizons))
+        list(results = results, ic = list(ic = ic_list, time_horizons = time_horizons), coefficients_pseudo_outcome = coefficient_list, coefficients_propensity_score = coefficients_propensity_score)
     }
 }

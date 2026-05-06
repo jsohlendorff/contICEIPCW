@@ -893,7 +893,6 @@ test_that("test continuous time function (censored; competing events; lm, penali
         uncensored = FALSE
     )
 
-    
     prep_data <- prepare_data(
         data = data_continuous,
         time_horizons = 720,
@@ -909,8 +908,7 @@ test_that("test continuous time function (censored; competing events; lm, penali
 
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
-        prepared_data = altered_data,
-        
+        prepared_data = altered_data,         
         model_pseudo_outcome = "lm",
         model_hazard = "learn_coxph",
         conservative = TRUE,
@@ -1301,4 +1299,102 @@ test_that("test continuous time function (reduce colinearity time)", {
                                       time_horizon = 720
                                   )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
+})
+
+
+
+test_that("test continuous time function (multiple time_horizons; save_coefficients)", {
+    library(survival)
+    library(data.table)
+    library(riskRegression)
+
+    set.seed(34)
+    # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = FALSE,
+        uncensored = FALSE
+    )
+
+    run_debias_ice_ipcw <- function(dat, time_horizons) {
+        prep_data <- prepare_data(
+            data = dat,
+            time_horizons = time_horizons,
+            time_covariates = c("A", "L"),
+            baseline_covariates = c("age", "A_0", "L_0"),
+            marginal_censoring = TRUE
+        )
+        altered_data <- propensity_scores(
+            prepared_data = prep_data,
+            model_treatment = "learn_glm_logistic",
+            model_hazard = "learn_coxph",
+            penalize_hazard = FALSE,
+            verbose = FALSE,
+            exclude_latest_covariate = "time",
+            save_coefficients = TRUE
+        )
+
+        # Run debiased ICE-IPCW procedure
+        result <- debias_ice_ipcw(
+            prepared_data = altered_data,
+            model_pseudo_outcome = "ipcw_glm_expit",
+            model_hazard = "learn_coxph",
+            conservative = TRUE,
+            verbose = FALSE,
+            return_ic = FALSE,
+            penalize_pseudo_outcome = FALSE,
+            save_coefficients = TRUE
+        )
+        return(result)
+    }
+    multiple_time_horizons_result <- run_debias_ice_ipcw(data_continuous, c(40, 720))
+    correct_result <- list(
+        results = data.table::data.table(
+                                  estimate = c(0.01900108775685487, 0.2844589299032478),
+                                  se = c(0.00431969850292091, 0.016749895544737124),
+                                  lower = c(0.010534478691129886, 0.251629134635563),
+                                  upper = c(0.027467696822579855, 0.31728872517093254),
+                                  ice_ipcw_estimate = c(0.01899765471672407, 0.28426232748420016),
+                                  ipw = c(0.01900108775685487, 0.28368580294914786),
+                                  time_horizon = c(40, 720)
+                              ),
+        ic = list(ic = list(), time_horizons = c(40, 720)),
+        coefficients_pseudo_outcome = list(
+            time_horizon_40 = list(c(`(Intercept)` = -6.292111124281916, age = 0.034219739405989595)),
+            time_horizon_720 = list(
+                c(`(Intercept)` = -2.4161716747828215, age = 0.022521304158494345),
+                c(
+                    `(Intercept)` = -2.4018264189146774,
+                    A_1 = -0.08171661133940541,
+                    L_1 = 0.061862304999988765,
+                    time_1 = -0.001464914377560413,
+                    event_1L = 0,
+                    age = 0.020986230433074144
+                ),
+                c(
+                    `(Intercept)` = -1.7007722992706833,
+                    A_1 = 0.1421421041220276,
+                    A_2 = 0.0013660199592455344,
+                    L_1 = 0.039714387528609424,
+                    time_1 = 0.00068355752411814,
+                    time_2 = -0.0037424542753176767,
+                    event_1L = 0,
+                    event_2L = 0,
+                    age = 0.01331774869186296
+                )
+            )
+        ),
+        coefficients_propensity_score = list(
+            marginal_censoring = c(age = 0.005783054352553628),
+            propensity = list(
+                A_2 = c(
+                    `(Intercept)` = -0.005747179468696966,
+                    time_1 = 0.00152561617893765,
+                    age = 0.0013259059289601918
+                ),
+                A_1 = c(`(Intercept)` = -0.1869627667878694, age = 0.013253029029797544)
+            )
+        )
+    )
+    expect_true(all.equal(multiple_time_horizons_result, correct_result, tolerance = 1e-8))
 })

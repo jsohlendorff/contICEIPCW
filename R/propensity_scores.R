@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: Apr 28 2026 (13:29) 
+## Last-Updated: May  6 2026 (12:06) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 462
+##     Update #: 486
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -29,6 +29,7 @@
 #' @param exclude_latest_covariate Optional character vector of covariate names to exclude the latest value of in the propensity score models.
 #' @param reduce_colinearity_time Logical; if \code{TRUE}, reduces colinearity in the regression for treatment by using increments of event times. Default is \code{FALSE}.
 #' @param gbound Optional numeric value for lower bounding the propensity scores to avoid extreme weights. If \code{NULL}, no bounding is applied.
+#' @param save_coefficients Logical; if \code{TRUE}, saves the coefficients of the fitted models in the output object. Default is \code{FALSE}.
 #'
 #' @export
 #' @examples
@@ -70,7 +71,8 @@ propensity_scores <- function(prepared_data,
                               exclude_latest_covariate = NULL,
                               reduce_colinearity_time = FALSE,
                               gbound = NULL,
-                              verbose = FALSE) {
+                              verbose = FALSE,
+                              save_coefficients = FALSE) {
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }
@@ -114,6 +116,17 @@ propensity_scores <- function(prepared_data,
     is_censored_max <- any(info$is_censored)
     last_event <- max(info$last_event)
     unique_last_events <- unique(info$last_event)
+
+    if (save_coefficients) {
+        coefficients_list <- list()
+        if (marginal_censoring) {
+            coefficients_list$marginal_censoring <- coef(marginal_censoring_fit$fit)
+        }
+        if (verbose) {
+            message("Coefficients for non-marginal censoring models will not be saved")
+        }
+        coefficients_propensity <- list()
+    }
 
     ############################################################################
     ## MAIN LOOP OVER EVENTS k
@@ -315,8 +328,13 @@ propensity_scores <- function(prepared_data,
                     penalize = penalize_treatment,
                     exclude_latest_covariate = exclude_latest_covariate,
                     verbose = verbose,
-                    reduce_colinearity_time = reduce_colinearity_time
+                    reduce_colinearity_time = reduce_colinearity_time,
+                    save_coefficients = save_coefficients
                 )
+                if (save_coefficients) {
+                    coefficients_propensity[[paste0("A_", k)]] <- preds$coefficients
+                }
+                preds <- preds$predictions
                 set(data, j = varcol, value = NULL)
                 if (any(is.na(preds))) {
                     stop("NA in propensity scores for event ", k)
@@ -360,8 +378,13 @@ propensity_scores <- function(prepared_data,
             type = "propensity",
             penalize = penalize_treatment,
             exclude_latest_covariate = exclude_latest_covariate,
-            verbose = verbose
+            verbose = verbose,
+            save_coefficients = save_coefficients
         )
+        if (save_coefficients) {
+            coefficients_propensity[["A_0"]] <- preds0$coefficients
+        }
+        preds0 <- preds0$predictions
 
         set(data, j = "A_0_var", value = NULL)
 
@@ -376,6 +399,12 @@ propensity_scores <- function(prepared_data,
         }
     }
 
+    if (save_coefficients) {
+        coefficients_list[["propensity"]] <- coefficients_propensity
+    } else {
+        coefficients_list <- NULL
+    }
+
     ############################################################################
     ## Remove temporary columns
     ############################################################################
@@ -385,7 +414,8 @@ propensity_scores <- function(prepared_data,
     out <- list(
         marginal_censoring_fit = marginal_censoring_fit,
         data = data,
-        prepared_data_object = prepared_data
+        prepared_data_object = prepared_data,
+        coefficients_propensity = coefficients_list
     )
     class(out) <- "debiased_prepared"
     out
