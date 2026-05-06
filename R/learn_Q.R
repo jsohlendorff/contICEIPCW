@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: May  6 2026 (12:52) 
+## Last-Updated: May  6 2026 (13:28) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 211
+##     Update #: 227
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -18,7 +18,6 @@
 # Model to use for the outcome regression which returns a prediction function
 # for the chosen model.
 # Available models are:
-# \code{"quasibinomial"},
 # \code{"ranger"},
 # \code{"lm"}.
 learn_Q <- function(model_type,
@@ -55,16 +54,8 @@ learn_Q <- function(model_type,
 
     if (verbose) message("Fitting outcome regression model of type: ", model_type, " with formula: ", outcome_name, "_", k, " ~ ", history_of_variables_string)
 
-    if (model_type %in% c("quasibinomial", "lm", "ipcw_glm_expit", "ipcw_glm_probit")) {
-        if (grepl("quasibinomial", model_type)) {
-            set(
-                data_learn,
-                j = "out",
-                value = data_learn[[outcome_name]]
-            )
-            weights <- rep(1, nrow(data_learn))
-            family <- quasibinomial()
-        } else if (model_type %in% c("ipcw_glm_expit", "ipcw_glm_probit")) {
+    if (model_type %in% c("lm", "ipcw_glm_expit", "ipcw_glm_probit")) {
+        if (model_type %in% c("ipcw_glm_expit", "ipcw_glm_probit")) {
             ## See Eq. (2) of https://link.springer.com/article/10.1007/s10985-022-09564-6
             ## Can be implemented by fitting a glm with weights;
             ## although we do need censoring survival weights at time $tau$ for that.
@@ -126,12 +117,12 @@ learn_Q <- function(model_type,
        }
     } else if (model_type %in% c("oipcw_expit", "oipcw_probit", "nls_expit", "nls_probit")) {
        Y <- data_learn[[outcome_name]]
-       X <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
+       X_all <- model.matrix(as.formula(paste0(" ~ ", history_of_variables_string)), data = data_learn)
 
        ## Remove columns of X which are NA in qr.coef(qr(X), Y);
        ## i.e., columns that would normally be removed in a glm fit
-       qr_coef <- qr.coef(qr(X),Y)
-       X <- X[, !is.na(qr_coef), drop = FALSE]
+       qr_coef <- qr.coef(qr(X_all),Y)
+       X <- X_all[, !is.na(qr_coef), drop = FALSE]
 
        ## Start with initial parameters corresponding to intercept only model
        intercept <- ifelse(grepl("expit", model_type), logit(mean(Y)), stats::qnorm(mean(Y)))
@@ -278,13 +269,6 @@ learn_Q <- function(model_type,
            }
        }
 
-       ## Checks and if nleqslv is avail
-       if (failed && grepl("oipcw", model_type)) {
-           if (requireNamespace("nleqslv", quietly = TRUE)) {
-               
-           }            
-       }
-
        predict_fun <- function(data) {
            X_new <- model.matrix(as.formula(paste0(
                " ~ ", history_of_variables_string
@@ -293,8 +277,10 @@ learn_Q <- function(model_type,
            link_function(X_new %*% fit)
        }
        if (save_coefficients) {
-           coefficients <- fit
-           names(coefficients) <- colnames(X)
+           coefficients <- vector("numeric", ncol(X_all))
+           coefficients[!is.na(qr_coef)] <- fit
+           coefficients[is.na(qr_coef)] <- 0
+           names(coefficients) <- colnames(X_all)
        }
    } else {
        ## If flexible, we should pick argmin_(f in cal(F)) sum((Y - g(f(X)))^2, where Y are the outcome weights and g is either expit or probit.

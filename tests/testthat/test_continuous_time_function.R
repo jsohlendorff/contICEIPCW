@@ -27,7 +27,7 @@ test_that("test continuous time function (uncensored)", {
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        model_pseudo_outcome = "quasibinomial",
+        model_pseudo_outcome = "ipcw_glm_expit",
         model_hazard = NULL,
         conservative = TRUE,
         verbose = FALSE
@@ -460,7 +460,7 @@ test_that("test continuous time function (uncensored; competing risks)", {
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        model_pseudo_outcome = "quasibinomial",
+        model_pseudo_outcome = "ipcw_glm_expit",
         model_hazard = NULL,
         conservative = TRUE,
         verbose = FALSE
@@ -1393,59 +1393,49 @@ test_that("test continuous time function (multiple time_horizons; save_coefficie
 })
 
 
-## test_that("compare ipcw_glm_expit with oipcw_expit (uncensored)", {
-##     library(data.table)
+test_that("compare ipcw_glm_expit with oipcw_expit (uncensored)", {
+    library(data.table)
 
-##     set.seed(34)
-##     # Simulate continuous time data with continuous and irregular event times
-##     data_continuous <- simulate_continuous_time_data(
-##         n = 1000,
-##         no_competing_events = TRUE,
-##         uncensored = TRUE
-##     )
+    set.seed(34)
+    # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = TRUE,
+        uncensored = TRUE
+    )
 
-##     prep_data <- prepare_data(
-##         data = data_continuous,
-##         time_horizons = 720,
-##         time_covariates = c("A", "L"),
-##         baseline_covariates = c("age", "A_0", "L_0"),
-##         verbose = TRUE
-##     )
-##     altered_data <- propensity_scores(
-##         prepared_data = prep_data,
-##         model_treatment = "learn_glm_logistic",
-##         model_hazard = "learn_coxph",
-##         verbose = TRUE
-##     )
+    prep_data <- prepare_data(
+        data = data_continuous,
+        time_horizons = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        verbose = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph",
+        verbose = TRUE
+    )
 
-##     # Run debiased ICE-IPCW procedure
-##     result1 <- debias_ice_ipcw(
-##                         prepared_data = altered_data,
-##                         model_pseudo_outcome = "oipcw_expit",
-##                         model_hazard = "learn_coxph",
-##                         conservative = TRUE,
-##                         verbose = TRUE,
-##         tmle_update = TRUE,
-##         save_coefficients = TRUE
-##     )
-##     result2 <- debias_ice_ipcw(
-##                         prepared_data = altered_data,
-##                         model_pseudo_outcome = "ipcw_glm_expit",
-##                         model_hazard = "learn_coxph",
-##                         conservative = TRUE,
-##                         verbose = TRUE,
-##         tmle_update = TRUE,
-##         save_coefficients = TRUE
-##     )
-
-##     correct_result <- data.table::data.table(
-##                                       estimate = 0.2707014384434423,
-##                                       se = 0.01676985289712445,
-##                                       lower = 0.23783252676507838,
-##                                       upper = 0.3035703501218062,
-##                                       ice_ipcw_estimate = NA,
-##                                       ipw = 0.2693019050719549,
-##                                         time_horizon = 720
-##                                   )
-##     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
-## })
+    # Run debiased ICE-IPCW procedure
+    result1 <- debias_ice_ipcw(
+                        prepared_data = altered_data,
+                        model_pseudo_outcome = "oipcw_expit",
+                        model_hazard = "learn_coxph",
+                        conservative = TRUE,
+                        verbose = TRUE,
+        tmle_update = TRUE,
+        save_coefficients = TRUE
+    )
+    result2 <- debias_ice_ipcw(
+                        prepared_data = altered_data,
+                        model_pseudo_outcome = "ipcw_glm_expit",
+                        model_hazard = "learn_coxph",
+                        conservative = TRUE,
+                        verbose = TRUE,
+        tmle_update = TRUE,
+        save_coefficients = TRUE
+    )
+    expect_true(all.equal(result1$coefficients_pseudo_outcome, result2$coefficients_pseudo_outcome, tolerance = 1e-8))
+})
