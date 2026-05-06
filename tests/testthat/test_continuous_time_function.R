@@ -76,19 +76,19 @@ test_that("test continuous time function (censored; conservative)", {
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = c(0.270426500711251),
-                                      se = c(0.0167728967294177),
-                                      lower = c(0.237551623121592),
-                                      upper = c(0.30330137830091),
-                                      ice_ipcw_estimate = c(0.271534334306832),
-                                      ipw = c(0.269324346522728),
+                                      estimate = 0.2704115512526602,
+                                      se = 0.016772384907760802,
+                                      lower = 0.23753767683344904,
+                                      upper = 0.3032854256718714,
+                                      ice_ipcw_estimate = 0.2715225167322129,
+                                      ipw = 0.26932434652272763,
                                       time_horizon = 720
                                   )
 
@@ -126,7 +126,7 @@ test_that("test continuous time function (censored; conservative, intervene_all_
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE,
@@ -134,18 +134,16 @@ test_that("test continuous time function (censored; conservative, intervene_all_
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.27042666855710473,
-                                      se = 0.01677307756052882,
-                                      lower = 0.23755143653846825,
-                                      upper = 0.30330190057574125,
-                                      ice_ipcw_estimate = 0.2715374676034445,
+                                      estimate = 0.2704117241871661,
+                                      se = 0.01677256689198405,
+                                      lower = 0.23753749307887734,
+                                      upper = 0.3032859552954548,
+                                      ice_ipcw_estimate = 0.2715256664894728,
                                       ipw = 0.26932434652272763,
                                       time_horizon = 720
                                   )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
-
-
 
 test_that("test continuous time function (censored; conservative, stratify)", {
     library(survival)
@@ -177,7 +175,7 @@ test_that("test continuous time function (censored; conservative, stratify)", {
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE,
@@ -185,17 +183,16 @@ test_that("test continuous time function (censored; conservative, stratify)", {
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.27018370034367295,
-                                      se = 0.016761809897687625,
-                                      lower = 0.23733055294420521,
-                                      upper = 0.30303684774314066,
-                                      ice_ipcw_estimate = 0.2712122534140999,
+                                      estimate = 0.27017318205896285,
+                                      se = 0.016761529026793245,
+                                      lower = 0.23732058516644808,
+                                      upper = 0.3030257789514776,
+                                      ice_ipcw_estimate = 0.27120409423533104,
                                       ipw = 0.26932434652272763,
                                       time_horizon = 720
                                   )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
-
 
 test_that("test continuous time function (censored; conservative, gbounds)", {
     library(survival)
@@ -228,18 +225,18 @@ test_that("test continuous time function (censored; conservative, gbounds)", {
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.271503442133741,
-                                      se = 0.01259949505754159,
-                                      lower = 0.2468084318209595,
-                                      upper = 0.29619845244652254,
-                                      ice_ipcw_estimate = 0.27153433430683216,
+                                      estimate = 0.27149155719215967,
+                                      se = 0.012599324206822148,
+                                      lower = 0.24679688174678827,
+                                      upper = 0.2961862326375311,
+                                      ice_ipcw_estimate = 0.2715225167322129,
                                       ipw = 0.2177178853431919,
                                       time_horizon = 720
                                   )
@@ -276,18 +273,18 @@ test_that("test continuous time function (censored; conservative; marginal_censo
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.2704025237816331,
-                                      se = 0.016772235506564332,
-                                      lower = 0.23752894218876702,
-                                      upper = 0.30327610537449917,
-                                      ice_ipcw_estimate = 0.2714325697499465,
+                                      estimate = 0.2703931183785679,
+                                      se = 0.016771944465327843,
+                                      lower = 0.2375201072265253,
+                                      upper = 0.30326612953061044,
+                                      ice_ipcw_estimate = 0.2714253421481474,
                                       ipw = 0.2693019050719549,
                                       time_horizon = 720
                                   )
@@ -323,23 +320,21 @@ test_that("test continuous time function (censored; non_conservative; multiple i
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = FALSE,
         grid_size = 10,
         verbose = FALSE
     )
 
-    # dpasta(result)
     correct_result <- data.table::data.table(
-                                      estimate = 0.2701755590505636,
-                                      se = 0.016741446624264904,
-                                      lower = 0.2373623236670044,
-                                      upper = 0.30298879443412285,
-                                      ice_ipcw_estimate = 0.2714325697499465,
+                                      estimate = 0.27016926137237446,
+                                      se = 0.01674112329876815,
+                                      lower = 0.23735665970678888,
+                                      upper = 0.30298186303796004,
+                                      ice_ipcw_estimate = 0.2714253421481474,
                                       ipw = 0.2693019050719549,
-                                        time_horizon = 720
+                                      time_horizon = 720
                                   )
 
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
@@ -418,12 +413,12 @@ test_that("update_TMLE option + version", {
 
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
-                        prepared_data = altered_data,
-                        model_pseudo_outcome = "oipcw_expit",
-                        model_hazard = "learn_coxph",
-                        conservative = TRUE,
-                        verbose = TRUE,
-                        tmle_update = TRUE
+        prepared_data = altered_data,
+        model_pseudo_outcome = "oipcw_expit",
+        model_hazard = "learn_coxph",
+        conservative = TRUE,
+        verbose = TRUE,
+        tmle_update = TRUE
     )
 
     correct_result <- data.table::data.table(
@@ -433,7 +428,7 @@ test_that("update_TMLE option + version", {
                                       upper = 0.3035703501218062,
                                       ice_ipcw_estimate = NA,
                                       ipw = 0.2693019050719549,
-                                        time_horizon = 720
+                                      time_horizon = 720
                                   )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
@@ -480,7 +475,7 @@ test_that("test continuous time function (uncensored; competing risks)", {
                                       upper = 0.291415136882485,
                                       ice_ipcw_estimate = 0.2604858194566298,
                                       ipw = 0.2593272643831233,
-                                        time_horizon = 720
+                                      time_horizon = 720
                                   )
 
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
@@ -515,22 +510,21 @@ test_that("test continuous time function (censored; conservative; competing risk
 
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
-        prepared_data = altered_data,
-        
-        model_pseudo_outcome = "scaled_quasibinomial",
+        prepared_data = altered_data,   
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE
     )
     
     correct_result <- data.table::data.table(
-                                      estimate = 0.28509305096789817,
-                                      se = 0.01687112579034439,
-                                      lower = 0.25202564441882314,
-                                      upper = 0.3181604575169732,
-                                      ice_ipcw_estimate = 0.28498047354582223,
-                                      ipw = 0.2852953695578807,
-                                        time_horizon = 720
+                                      estimate = 0.2850948048585022,
+                                      se = 0.016871074553021198,
+                                      lower = 0.25202749873458064,
+                                      upper = 0.31816211098242375,
+                                      ice_ipcw_estimate = 0.28497862786528977,
+                                      ipw = 0.28529536955788065,
+                                      time_horizon = 720
                                   )
 
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
@@ -566,18 +560,18 @@ test_that("test continuous time function (censored; competing events; conservati
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
         
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = TRUE,
         verbose = FALSE
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.28476294065658975,
-                                      se = 0.01684744267744183,
-                                      lower = 0.25174195300880375,
-                                      upper = 0.31778392830437574,
-                                      ice_ipcw_estimate = 0.2846643753705404,
+                                      estimate = 0.28476394511718484,
+                                      se = 0.01684741059880183,
+                                      lower = 0.25174302034353324,
+                                      upper = 0.31778486989083643,
+                                      ice_ipcw_estimate = 0.284662875273469,
                                       ipw = 0.28495738884128674,
                                       time_horizon = 720
                                   )
@@ -613,8 +607,7 @@ test_that("test continuous time function (censored; competing events; conservati
     # Run debiased ICE-IPCW procedure
     result <- debias_ice_ipcw(
         prepared_data = altered_data,
-        
-        model_pseudo_outcome = "scaled_quasibinomial",
+        model_pseudo_outcome = "oipcw_expit",
         model_hazard = "learn_coxph",
         conservative = FALSE,
         grid_size = 15,
@@ -622,11 +615,11 @@ test_that("test continuous time function (censored; competing events; conservati
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.28419787544646624,
-                                      se = 0.01681271790106795,
-                                      lower = 0.25124494836037303,
-                                      upper = 0.31715080253255945,
-                                      ice_ipcw_estimate = 0.2846643753705404,
+                                      estimate = 0.2842003802689462,
+                                      se = 0.016812660085693012,
+                                      lower = 0.2512475665009879,
+                                      upper = 0.31715319403690445,
+                                      ice_ipcw_estimate = 0.284662875273469,
                                       ipw = 0.28495738884128674,
                                       time_horizon = 720
                                   )
@@ -1398,3 +1391,61 @@ test_that("test continuous time function (multiple time_horizons; save_coefficie
     )
     expect_true(all.equal(multiple_time_horizons_result, correct_result, tolerance = 1e-8))
 })
+
+
+## test_that("compare ipcw_glm_expit with oipcw_expit (uncensored)", {
+##     library(data.table)
+
+##     set.seed(34)
+##     # Simulate continuous time data with continuous and irregular event times
+##     data_continuous <- simulate_continuous_time_data(
+##         n = 1000,
+##         no_competing_events = TRUE,
+##         uncensored = TRUE
+##     )
+
+##     prep_data <- prepare_data(
+##         data = data_continuous,
+##         time_horizons = 720,
+##         time_covariates = c("A", "L"),
+##         baseline_covariates = c("age", "A_0", "L_0"),
+##         verbose = TRUE
+##     )
+##     altered_data <- propensity_scores(
+##         prepared_data = prep_data,
+##         model_treatment = "learn_glm_logistic",
+##         model_hazard = "learn_coxph",
+##         verbose = TRUE
+##     )
+
+##     # Run debiased ICE-IPCW procedure
+##     result1 <- debias_ice_ipcw(
+##                         prepared_data = altered_data,
+##                         model_pseudo_outcome = "oipcw_expit",
+##                         model_hazard = "learn_coxph",
+##                         conservative = TRUE,
+##                         verbose = TRUE,
+##         tmle_update = TRUE,
+##         save_coefficients = TRUE
+##     )
+##     result2 <- debias_ice_ipcw(
+##                         prepared_data = altered_data,
+##                         model_pseudo_outcome = "ipcw_glm_expit",
+##                         model_hazard = "learn_coxph",
+##                         conservative = TRUE,
+##                         verbose = TRUE,
+##         tmle_update = TRUE,
+##         save_coefficients = TRUE
+##     )
+
+##     correct_result <- data.table::data.table(
+##                                       estimate = 0.2707014384434423,
+##                                       se = 0.01676985289712445,
+##                                       lower = 0.23783252676507838,
+##                                       upper = 0.3035703501218062,
+##                                       ice_ipcw_estimate = NA,
+##                                       ipw = 0.2693019050719549,
+##                                         time_horizon = 720
+##                                   )
+##     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
+## })

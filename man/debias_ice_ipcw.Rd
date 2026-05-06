@@ -23,7 +23,8 @@ debias_ice_ipcw(
   reduce_colinearity_time = FALSE,
   intervention_hook = NULL,
   stratify_sequential_regression = FALSE,
-  intervene_all_sequential_regression = FALSE
+  intervene_all_sequential_regression = FALSE,
+  save_coefficients = FALSE
 )
 }
 \arguments{
@@ -71,6 +72,8 @@ Default is \code{TRUE}.}
 \item{stratify_sequential_regression}{Logical; if \code{TRUE}, stratifies on the people following protocol in sequential regression}
 
 \item{intervene_all_sequential_regression}{Logical; if \code{TRUE}, applies the intervention to all sequential regressions, including the regression for the pseudo-outcome. Default is \code{FALSE}.}
+
+\item{save_coefficients}{If \code{TRUE}, saves the coefficients of the regression models used in the procedure. Default is \code{FALSE}.}
 }
 \value{
 A named vector containing the following elements:

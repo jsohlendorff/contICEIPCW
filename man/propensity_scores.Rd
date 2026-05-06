@@ -15,7 +15,8 @@ propensity_scores(
   exclude_latest_covariate = NULL,
   reduce_colinearity_time = FALSE,
   gbound = NULL,
-  verbose = FALSE
+  verbose = FALSE,
+  save_coefficients = FALSE
 )
 }
 \arguments{
@@ -42,6 +43,8 @@ Options include \code{"learn_coxph"} (Cox proportional hazards model).}
 \item{gbound}{Optional numeric value for lower bounding the propensity scores to avoid extreme weights. If \code{NULL}, no bounding is applied.}
 
 \item{verbose}{Logical; if \code{TRUE}, prints additional information during model fitting.}
+
+\item{save_coefficients}{Logical; if \code{TRUE}, saves the coefficients of the fitted models in the output object. Default is \code{FALSE}.}
 }
 \description{
 Function for adding propensity scores (treatment) and censoring models to the prepared data object

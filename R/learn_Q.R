@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: May  6 2026 (11:37) 
+## Last-Updated: May  6 2026 (12:52) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 204
+##     Update #: 211
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -19,7 +19,6 @@
 # for the chosen model.
 # Available models are:
 # \code{"quasibinomial"},
-# \code{"scaled_quasibinomial"},
 # \code{"ranger"},
 # \code{"lm"}.
 learn_Q <- function(model_type,
@@ -56,18 +55,12 @@ learn_Q <- function(model_type,
 
     if (verbose) message("Fitting outcome regression model of type: ", model_type, " with formula: ", outcome_name, "_", k, " ~ ", history_of_variables_string)
 
-    if (model_type %in% c("quasibinomial", "scaled_quasibinomial", "lm", "ipcw_glm_expit", "ipcw_glm_probit")) {
+    if (model_type %in% c("quasibinomial", "lm", "ipcw_glm_expit", "ipcw_glm_probit")) {
         if (grepl("quasibinomial", model_type)) {
-            if (model_type == "quasibinomial") {
-                scale <- 1
-            } else if (model_type == "scaled_quasibinomial") {
-                scale <- max_weight
-                penalize <- FALSE
-            }
             set(
                 data_learn,
                 j = "out",
-                value = data_learn[[outcome_name]] / scale
+                value = data_learn[[outcome_name]]
             )
             weights <- rep(1, nrow(data_learn))
             family <- quasibinomial()
@@ -76,7 +69,6 @@ learn_Q <- function(model_type,
             ## Can be implemented by fitting a glm with weights;
             ## although we do need censoring survival weights at time $tau$ for that.
 
-            scale <- 1
             data_learn$out <- data_learn[[outcome_string_unweighted]]
             weights <- data_learn[[ipcw_name]]
             if (model_type == "ipcw_glm_expit") {
@@ -85,7 +77,6 @@ learn_Q <- function(model_type,
                 family <- binomial(link = "probit")
             }
         } else {
-            scale <- 1
             data_learn$out <- data_learn[[outcome_name]]
             weights <- rep(1, nrow(data_learn))
             family <- stats::gaussian()
@@ -100,7 +91,7 @@ learn_Q <- function(model_type,
                 weights = weights
               )
               predict_fun <- function(data) {
-                predict(fit, data, type = "response") * scale
+                predict(fit, data, type = "response") 
               }
               if (save_coefficients) {
                   coefficients <- coef(fit)
