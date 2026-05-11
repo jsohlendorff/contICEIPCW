@@ -24,16 +24,33 @@ arma::vec estimating_equation_cpp(
     std::string model_type,
     arma::vec beta,
     arma::vec offset,
+    Nullable<arma::vec> weights_ = R_NilValue,
     std::string solve_opts = "fast",
     int maxit = 100,
     double tol = 1e-8,
     bool verbose = false) {
   
+  const unsigned int n = X.n_rows;
   const unsigned int p = X.n_cols;
+  
   // check that beta has the right length
   if(beta.n_elem != p) {
     stop("Length of beta must match number of columns in X");
   }
+  
+  // weights
+  arma::vec weights;
+  
+  if(weights_.isNotNull()) {
+    weights = as<arma::vec>(weights_);
+    
+    if(weights.n_elem != n) {
+      stop("Length of weights must match number of rows in X");
+    }
+  } else {
+    weights = arma::ones<arma::vec>(n);
+  }
+  
   // vec beta(p, fill::zeros);
   
   bool is_oipcw_expit = model_type == "oipcw_expit";
@@ -54,10 +71,10 @@ arma::vec estimating_equation_cpp(
       mu = expit_vec(eta);
       w  = mu % (1.0 - mu);
       
-      F = crossprod_vec(X, Y - mu);
-      J = -crossprod_weighted(X, w);
+      F = crossprod_vec(X, weights % (Y - mu));
+      J = -crossprod_weighted(X, weights % w);
     }
-
+    
     // ==============================
     // OIPCW score: probit
     // ==============================
@@ -67,16 +84,16 @@ arma::vec estimating_equation_cpp(
       pdf = normpdf(eta) / w;
       
       vec r = Y - mu;
-
-      F = crossprod_vec(X, r % pdf);
+      
+      F = crossprod_vec(X, weights % r % pdf);
       
       vec d_pdf = -eta % normpdf(eta) / w 
-	- pdf % ( (1.0 - 2.0*mu) % normpdf(eta) / w );
-  
-      vec weight = pdf % normpdf(eta) + r % d_pdf;
-  
+        - pdf % ( (1.0 - 2.0*mu) % normpdf(eta) / w );
+      
+      vec weight = weights % (pdf % normpdf(eta) + r % d_pdf);
+      
       J = -crossprod_weighted(X, weight);
-
+      
     }
     
     // ==============================
@@ -89,9 +106,9 @@ arma::vec estimating_equation_cpp(
       
       vec r = Y - mu;
       
-      F = crossprod_vec(X, r % pdf);
+      F = crossprod_vec(X, weights % r % pdf);
       
-      vec W = -pdf % pdf - r % pdf % (1.0 - 2.0*mu);
+      vec W = weights % (-pdf % pdf - r % pdf % (1.0 - 2.0*mu));
       J = crossprod_weighted(X, W);
     }
     
@@ -105,9 +122,9 @@ arma::vec estimating_equation_cpp(
       
       vec r = Y - mu;
       
-      F = crossprod_vec(X, r % pdf);
+      F = crossprod_vec(X, weights % r % pdf);
       
-      vec W = -pdf % pdf - r % eta % pdf;
+      vec W = weights % (-pdf % pdf - r % eta % pdf);
       J = crossprod_weighted(X, W);
     }
     else {
@@ -152,7 +169,7 @@ arma::vec estimating_equation_cpp(
       step_factor *= 0.5;
       beta_new = beta - step_factor * step;
       if (verbose) {
-	Rcpp::Rcout << "beta_new is " << beta_new.t() << std::endl;
+        Rcpp::Rcout << "beta_new is " << beta_new.t() << std::endl;
       }
     }
     

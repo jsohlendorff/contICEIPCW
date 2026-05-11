@@ -303,13 +303,12 @@ debias_ice_ipcw <- function(
                 ]
 
                 if (tmle_update) {
-                    estimating_equation_tmle_step <- function(epsilon, ipw, pseudo_outcome,q_pred) {
-                        as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilon * ipw)))
-                    }
                     has_weight <- ic_final$ipw_cum_weight > 0
-                    X <- as.matrix(ic_final$ipw_cum_weight[has_weight])
                     Y <- ic_final$pseudo_outcome[has_weight]
                     offset <- logit(ic_final$q_prediction[has_weight])
+                    X <- matrix(1, nrow = sum(has_weight), ncol = 1)
+                    weights <- ic_final$ipw_cum_weight[has_weight]
+                    weights <- scale(weights, center = FALSE)
                     epsilonhat <- tryCatch(
                         estimating_equation_cpp(
                             X = X,
@@ -319,7 +318,8 @@ debias_ice_ipcw <- function(
                             tol = 1e-8,
                             beta = 0,
                             solve_opts = "force_approx",
-                            offset = offset
+                            offset = offset,
+                            weights = weights
                         )[1, 1],
                         error = function(e) {
                             if (verbose) {
@@ -327,21 +327,15 @@ debias_ice_ipcw <- function(
                             }
                             0
                         }
-                    ) 
-                    ## epsilonhat <- nleqslv::nleqslv(f = estimating_equation_tmle_step, x = 0, ipw = ic_final$ipw_cum_weight, pseudo_outcome = ic_final$pseudo_outcome, q_pred = ic_final$q_prediction, control = list(maxit = 1000, allowSingular = TRUE))$x
-                    g_val <- estimating_equation_tmle_step(epsilonhat, ic_final$ipw_cum_weight, ic_final$pseudo_outcome, ic_final$q_prediction)
-                    if (is.null(g_val) || length(g_val) != 1 || !is.finite(g_val)) {
+                    )
+                    if (is.null(epsilonhat) || length(epsilonhat) != 1 || !is.finite(epsilonhat)) {
                         warning("TMLE update failed to compute estimating equation value; No TMLE update performed for this iteration.")
-                        q_new <- ic_final$q_prediction
-                    } else if (abs(g_val) > 1e-1) {
-                        warning("TMLE update did not solve the estimating equation with value = ", g_val, "\n. Not updating with TMLE step for this iteration.")
                         q_new <- ic_final$q_prediction
                     } else {
                         q_new <- expit(
-                            logit(ic_final$q_prediction) +
-                            epsilonhat * ic_final$ipw_cum_weight)
-                    }
-
+                            epsilonhat + logit(ic_final$q_prediction)
+                        )
+                    } 
                     set(
                         ic_final,
                         j = "q_prediction",

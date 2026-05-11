@@ -422,16 +422,18 @@ test_that("update_TMLE option + version", {
     )
 
     correct_result <- data.table::data.table(
-                                      estimate = 0.2707014384434423,
-                                      se = 0.01676985289712445,
-                                      lower = 0.23783252676507838,
-                                      upper = 0.3035703501218062,
+                                      estimate = 0.27038944349510785,
+                                      se = 0.01677127515082514,
+                                      lower = 0.23751774419949057,
+                                      upper = 0.30326114279072514,
                                       ice_ipcw_estimate = NA,
                                       ipw = 0.2693019050719549,
                                       time_horizon = 720
                                   )
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
+
+
 
 test_that("test continuous time function (uncensored; competing risks)", {
     library(data.table)
