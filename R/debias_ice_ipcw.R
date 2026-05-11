@@ -304,18 +304,22 @@ debias_ice_ipcw <- function(
 
                 if (tmle_update) {
                     estimating_equation_tmle_step <- function(epsilon, ipw, pseudo_outcome,q_pred) {
-                        as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilon * ic_final$ipw_cum_weight)))
+                        as.vector(t(ipw) %*% (pseudo_outcome - expit(logit(q_pred) + epsilon * ipw)))
                     }
+                    has_weight <- ic_final$ipw_cum_weight > 0
+                    X <- as.matrix(ic_final$ipw_cum_weight[has_weight])
+                    Y <- ic_final$pseudo_outcome[has_weight]
+                    offset <- logit(ic_final$q_prediction[has_weight])
                     epsilonhat <- tryCatch(
                         estimating_equation_cpp(
-                            X = as.matrix(ic_final$ipw_cum_weight),
-                            Y = ic_final$pseudo_outcome,
+                            X = X,
+                            Y = Y,
                             model_type = "oipcw_expit",
                             maxit = 1000,
                             tol = 1e-8,
                             beta = 0,
                             solve_opts = "force_approx",
-                            offset = logit(ic_final$q_prediction)
+                            offset = offset
                         )[1, 1],
                         error = function(e) {
                             if (verbose) {
