@@ -32,50 +32,53 @@ estimating_equation_r <- function(X,
         }
     }
 
-    for (iter in seq_len(maxit)) {
+    score_fn <- function(beta) {
+        eta <- as.vector(X %*% beta) + offset
+        mu <- expit(eta)
+        if (has_weights) {
+            as.vector(crossprod(X, weights * (Y - mu)))
+        } else {
+            as.vector(crossprod(X, Y - mu))
+        }
+    }
+
+    jacobian_fn <- function(beta) {
         eta <- as.vector(X %*% beta) + offset
         mu <- expit(eta)
         w <- mu * (1 - mu)
-
         if (has_weights) {
-            score <- as.vector(crossprod(X, weights * (Y - mu)))
-            jacobian <- -crossprod(X, X * (weights * w))
+            -crossprod(X, X * (weights * w))
         } else {
-            score <- as.vector(crossprod(X, Y - mu))
-            jacobian <- -crossprod(X, X * w)
+            -crossprod(X, X * w)
         }
-
-        step <- tryCatch(
-            solve(jacobian, score),
-            error = function(e) NULL
-        )
-        if (is.null(step)) {
-            warning("Linear system could not be solved, stopping iteration")
-            return(matrix(unname(beta), ncol = 1))
-        }
-        step <- as.numeric(step)
-
-        if (verbose) {
-            message("step is ", paste(step, collapse = " "))
-        }
-
-        step_factor <- 1
-        beta_new <- beta - step
-        while (!all(is.finite(beta_new)) && step_factor > 1e-6) {
-            step_factor <- step_factor * 0.5
-            beta_new <- beta - step_factor * step
-            if (verbose) {
-                message("beta_new is ", paste(beta_new, collapse = " "))
-            }
-        }
-
-        if (max(abs(beta_new - beta)) < tol) {
-            return(matrix(unname(beta_new), ncol = 1))
-        }
-
-        beta <- beta_new
     }
 
-    warning("Did not converge")
-    matrix(unname(beta), ncol = 1)
+    fit <- tryCatch(
+        nleqslv::nleqslv(
+            x = beta,
+            fn = score_fn,
+            jac = jacobian_fn,
+            method = "Newton",
+            control = list(
+                maxit = maxit,
+                xtol = tol,
+                ftol = tol,
+                trace = if (verbose) 1L else 0L
+            )
+        ),
+        error = function(e) e
+    )
+
+    if (inherits(fit, "error")) {
+        warning("Root solver failed: ", conditionMessage(fit))
+        return(matrix(unname(beta), ncol = 1))
+    }
+
+    converged <- identical(fit$termcd, 1L) ||
+        isTRUE(max(abs(fit$fvec)) < tol)
+    if (!converged) {
+        warning(if (!is.null(fit$message)) fit$message else "Did not converge")
+    }
+
+    matrix(unname(as.numeric(fit$x)), ncol = 1)
 }
