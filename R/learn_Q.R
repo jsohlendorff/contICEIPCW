@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: May 12 2026 (03:05) 
+## Last-Updated: May 12 2026 (12:04) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 239
+##     Update #: 241
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -40,7 +40,7 @@ learn_Q <- function(model_type,
         predict_fun <- function(data) {
             rep(0, nrow(data))
         }
-        return(predict_fun)
+        return(list(predict_fun = predict_fun, coefficients = "0 values"))
     }
     
     ## String for the formula of the rhs of the formula with the outcome
