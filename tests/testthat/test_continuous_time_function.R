@@ -1444,7 +1444,7 @@ test_that("compare ipcw_glm_expit with oipcw_expit (uncensored)", {
 
 test_that("Test that the results of debias_ice_ipcw are correct oipcw_expit", {
     out <- list()
-    data("data_large")
+    
 for (n_sample in c(100, 200, 500, 2000, 5000)) {
     dat <- copy(data_large)
     dat$baseline_data <- dat$baseline_data[id %in% seq_len(n_sample)]
@@ -1581,7 +1581,7 @@ expect_equal(out2, correct_result2)
 
 test_that("Test that the results of debias_ice lm", {
 out_lm <- list()
-data("data_large")
+
 for (n_sample in c(100, 200, 500, 2000, 5000)) {
     dat <- copy(data_large)
     dat$baseline_data <- dat$baseline_data[id %in% seq_len(n_sample)]
