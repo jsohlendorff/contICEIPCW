@@ -28,11 +28,27 @@ arma::vec estimating_equation_cpp(
     double tol = 1e-8,
     bool verbose = false) {
   
-  const unsigned int p = X.n_cols;
+  const uword p = X.n_cols;
+  const uword n = X.n_rows;
   
   // check that beta has the right length
   if(beta.n_elem != p) {
     stop("Length of beta must match number of columns in X");
+  }
+  if(Y.n_elem != n) {
+    stop("Length of Y must match number of rows in X");
+  }
+  if(offset.n_elem != n) {
+    stop("Length of offset must match number of rows in X");
+  }
+
+  vec weights;
+  bool has_weights = weights_.isNotNull();
+  if (has_weights) {
+    weights = as<arma::vec>(weights_);
+    if(weights.n_elem != n) {
+      stop("Length of weights_ must match number of rows in X");
+    }
   }
     
   for(int iter = 0; iter < maxit; iter++) {
@@ -47,8 +63,7 @@ arma::vec estimating_equation_cpp(
     mu = expit_vec(eta);
     w  = mu % (1.0 - mu);
 
-    if (weights_.isNotNull()) {
-      vec weights = as<arma::vec>(weights_);
+    if (has_weights) {
       F = crossprod_vec(X, weights % (Y - mu));
       J = -crossprod_weighted(X, weights % w);
     } else {

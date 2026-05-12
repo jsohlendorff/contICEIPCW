@@ -309,7 +309,7 @@ debias_ice_ipcw <- function(
                         offset <- logit(ic_final$q_prediction[has_weight])
                         X <- matrix(1, nrow = sum(has_weight), ncol = 1)
                         weights <- ic_final$ipw_cum_weight[has_weight]
-                        weights <- scale(weights, center = FALSE)
+                        weights <- as.numeric(scale(weights, center = FALSE))
                         epsilonhat <- tryCatch(
                             estimating_equation_cpp(
                                 X = X,
@@ -318,7 +318,7 @@ debias_ice_ipcw <- function(
                                 tol = 1e-8,
                                 beta = 0,
                                 offset = offset,
-                                weights = weights
+                                weights_ = weights
                             )[1, 1],
                             error = function(e) {
                                 if (verbose) {
