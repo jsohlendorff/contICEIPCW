@@ -1441,3 +1441,347 @@ test_that("compare ipcw_glm_expit with oipcw_expit (uncensored)", {
     )
     expect_true(all.equal(result1$coefficients_pseudo_outcome, result2$coefficients_pseudo_outcome, tolerance = 1e-8))
 })
+
+test_that("Test that the results of debias_ice_ipcw are correct oipcw_expit", {
+    out <- list()
+    data("data_large")
+for (n_sample in c(100, 200, 500, 2000, 5000)) {
+    dat <- copy(data_large)
+    dat$baseline_data <- dat$baseline_data[id %in% seq_len(n_sample)]
+    dat$timevarying_data <- dat$timevarying_data[id %in% seq_len(n_sample)]
+    prep_data <- prepare_data(
+        data = list(baseline_data = dat$baseline_data,
+                    timevarying_data = dat$timevarying_data),
+        time_horizons = 12,
+        time_covariates = c("changeHbA1c", "A"),
+        baseline_covariates =  c("sex", "HbA1c", "A_0"),
+        marginal_censoring = TRUE,
+        verbose = FALSE
+    )
+    prop_scores <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        penalize_treatment = FALSE,
+        model_hazard = "learn_coxph",
+        verbose = FALSE,
+        exclude_latest_covariate = NULL,
+        lag = 1
+    )
+    out[[n_sample]] <- suppressWarnings(debias_ice_ipcw(
+        prepared_data = prop_scores,
+        model_hazard = NULL,
+        penalize_hazard = FALSE,
+        conservative = TRUE,
+        static_intervention = 1,
+        return_ic = FALSE,
+        verbose = FALSE,
+        model_pseudo_outcome = "oipcw_expit",
+        lag = 2,
+        tmle_update = FALSE))
+    out[[n_sample]][, n := n_sample]
+}
+out <- rbindlist(out)
+
+correct_result <- data.table::data.table(
+  estimate = c(
+    0.05275045505310994, 0.058653069607032406, 0.0920445478340875,
+    0.07869948335863602, 0.08056794393268796
+  ),
+  se = c(
+    0.02616153925723968, 0.01934049699256632, 0.019670435952680282,
+    0.009499837224869821, 0.0062370314860235665
+  ),
+  lower = c(
+    0.0014738381089201766, 0.020745695501602414, 0.053490493366834146,
+    0.06007980239789118, 0.06834336222008176
+  ),
+  upper = c(
+    0.10402707199729971, 0.09656044371246239, 0.13059860230134085,
+    0.09731916431938087, 0.09279252564529415
+  ),
+  ice_ipcw_estimate = c(
+    0.05254852530197558, 0.05591871042430871, 0.08266728284987297,
+    0.08705106299924835, 0.08615179294968066
+  ),
+  ipw = c(
+    0.04379417325098416, 0.05003478414183253, 0.0904672186367006,
+    0.0783965787706544, 0.0808209033910306
+  ),
+  time_horizon = 12,
+  n = c(100, 200, 500, 2000, 5000)
+  )
+
+out2 <- list()
+for (n_sample in c(100, 200, 500, 2000, 5000)) {
+    dat <- copy(data_large)
+    dat$baseline_data <- dat$baseline_data[id %in% seq_len(n_sample)]
+    dat$timevarying_data <- dat$timevarying_data[id %in% seq_len(n_sample)]
+    prep_data <- prepare_data(
+        data = list(baseline_data = dat$baseline_data,
+                    timevarying_data = dat$timevarying_data),
+        time_horizons = 12,
+        time_covariates = c("changeHbA1c", "A"),
+        baseline_covariates =  c("sex", "HbA1c", "A_0"),
+        marginal_censoring = TRUE,
+        verbose = FALSE
+    )
+    prop_scores <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        penalize_treatment = FALSE,
+        model_hazard = "learn_coxph",
+        verbose = FALSE,
+        exclude_latest_covariate = NULL,
+        lag = 1
+    )
+    out2[[n_sample]] <- suppressWarnings(debias_ice_ipcw(
+        prepared_data = prop_scores,
+        model_hazard = NULL,
+        penalize_hazard = FALSE,
+        conservative = TRUE,
+        static_intervention = 1,
+        return_ic = FALSE,
+        verbose = FALSE,
+        model_pseudo_outcome = "oipcw_expit",
+        lag = 2,
+        tmle_update = TRUE))
+    out2[[n_sample]][, n := n_sample]
+}
+out2 <- rbindlist(out2)
+
+correct_result2 <- data.table::data.table(
+  estimate = c(
+    0.10609042333403196, 0.05317191694193237, 0.09097830305302919,
+    0.07854119116290718, 0.08055631533843359
+  ),
+  se = c(
+    0.036636164197027636, 0.01916647055418368, 0.019206568204019118,
+    0.009431257971313717, 0.006225584568529585
+  ),
+  lower = c(
+    0.034283541507857784, 0.015605634655732357, 0.05333342937315172,
+    0.0600559255391323, 0.06835416958411561
+  ),
+  upper = c(
+    0.17789730516020613, 0.0907381992281324, 0.12862317673290666,
+    0.09702645678668206, 0.09275846109275157
+  ),
+  ice_ipcw_estimate = NA,
+  ipw = c(
+    0.04379417325098416, 0.05003478414183253, 0.0904672186367006,
+    0.0783965787706544, 0.0808209033910306
+  ),
+  time_horizon = 12,
+  n = c(100, 200, 500, 2000, 5000)
+)
+
+expect_equal(out, correct_result)
+expect_equal(out2, correct_result2)
+})
+
+test_that("Test that the results of debias_ice lm", {
+out_lm <- list()
+data("data_large")
+for (n_sample in c(100, 200, 500, 2000, 5000)) {
+    dat <- copy(data_large)
+    dat$baseline_data <- dat$baseline_data[id %in% seq_len(n_sample)]
+    dat$timevarying_data <- dat$timevarying_data[id %in% seq_len(n_sample)]
+    prep_data <- prepare_data(
+        data = list(baseline_data = dat$baseline_data,
+                    timevarying_data = dat$timevarying_data),
+        time_horizons = 12,
+        time_covariates = c("changeHbA1c", "A"),
+        baseline_covariates =  c("sex", "HbA1c", "A_0"),
+        marginal_censoring = TRUE,
+        verbose = FALSE
+    )
+    prop_scores <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        penalize_treatment = FALSE,
+        model_hazard = "learn_coxph",
+        verbose = FALSE,
+        exclude_latest_covariate = NULL,
+        lag = 1
+    )
+    out_lm[[n_sample]] <- suppressWarnings(debias_ice_ipcw(
+        prepared_data = prop_scores,
+        model_hazard = NULL,
+        penalize_hazard = FALSE,
+        conservative = TRUE,
+        static_intervention = 1,
+        return_ic = FALSE,
+        verbose = FALSE,
+        lag = 2,
+        model_pseudo_outcome = "lm",
+        tmle_update = FALSE))
+    out_lm[[n_sample]][, n := n_sample]
+}
+out_lm <- rbindlist(out_lm)
+
+correct_result<- data.table::data.table(
+  estimate = c(
+    0.047369497141366505, 0.057278372797956764, 0.08933165397210774,
+    0.07897105692684786, 0.08049875406779308
+  ),
+  se = c(
+    0.027511118206029257, 0.019553412473279908, 0.020318567094684416,
+    0.009507212346655677, 0.006234785166022706
+  ),
+  lower = c(
+    -0.006552294542450841, 0.018953684350328147, 0.04950726246652628,
+    0.06033692072740273, 0.06827857514238858
+  ),
+  upper = c(
+    0.10129128882518385, 0.09560306124558537, 0.1291560454776892,
+    0.09760519312629298, 0.09271893299319758
+  ),
+  ice_ipcw_estimate = c(
+    0.07815340501412736, 0.08066872943176291, 0.09229438724015675,
+    0.09347612306537477, 0.09139860135252571
+  ),
+  ipw = c(
+    0.04379417325098416, 0.05003478414183253, 0.0904672186367006,
+    0.0783965787706544, 0.0808209033910306
+  ),
+  time_horizon = 12,
+  n = c(100, 200, 500, 2000, 5000)
+)
+
+expect_equal(out_lm, correct_result)
+})
+
+test_that("Test that the results of debias_ice_ipcw ipcw_glm_expit", {
+out <- list()
+for (n_sample in c(100, 200, 500, 2000, 5000)) {
+    dat <- copy(data_large)
+    dat$baseline_data <- dat$baseline_data[id %in% seq_len(n_sample)]
+    dat$timevarying_data <- dat$timevarying_data[id %in% seq_len(n_sample)]
+    prep_data <- prepare_data(
+        data = list(baseline_data = dat$baseline_data,
+                    timevarying_data = dat$timevarying_data),
+        time_horizons = 12,
+        time_covariates = c("changeHbA1c", "A"),
+        baseline_covariates =  c("sex", "HbA1c", "A_0"),
+        marginal_censoring = TRUE,
+        verbose = FALSE
+    )
+    prop_scores <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        penalize_treatment = FALSE,
+        model_hazard = "learn_coxph",
+        verbose = FALSE,
+        exclude_latest_covariate = NULL,
+        lag = 1
+    )
+    out[[n_sample]] <- suppressWarnings(debias_ice_ipcw(
+        prepared_data = prop_scores,
+        model_hazard = NULL,
+        penalize_hazard = FALSE,
+        conservative = TRUE,
+        static_intervention = 1,
+        return_ic = FALSE,
+        verbose = FALSE,
+        lag = 2,
+        model_pseudo_outcome = "ipcw_glm_expit",
+        tmle_update = FALSE))
+    out[[n_sample]][, n := n_sample]
+}
+out <- rbindlist(out)
+
+correct_result <- data.table::data.table(
+  estimate = c(
+    0.052848142095693225, 0.0586465165585829, 0.09087803976254738,
+    0.07868533972856515, 0.08068718670231734
+  ),
+  se = c(
+    0.026167761097669034, 0.01933986608593364, 0.01912786414452399,
+    0.009499598504120348, 0.006247895378810273
+  ),
+  lower = c(
+    0.0015593303442619152, 0.02074037903015296, 0.05338742603928036,
+    0.060066126660489265, 0.0684413117598492
+  ),
+  upper = c(
+    0.10413695384712454, 0.09655265408701283, 0.1283686534858144,
+    0.09730455279664102, 0.09293306164478547
+  ),
+  ice_ipcw_estimate = c(
+    0.05309670960456251, 0.05614142864725658, 0.08328094634267734,
+    0.08730073463737155, 0.08678755069955042
+  ),
+  ipw = c(
+    0.04379417325098416, 0.05003478414183253, 0.0904672186367006,
+    0.0783965787706544, 0.0808209033910306
+  ),
+  time_horizon = 12,
+  n = c(100, 200, 500, 2000, 5000)
+)
+
+out2 <- list()
+for (n_sample in c(100, 200, 500, 2000, 5000)) {
+    dat <- copy(data_large) 
+    dat$baseline_data <- dat$baseline_data[id %in% seq_len(n_sample)]
+    dat$timevarying_data <- dat$timevarying_data[id %in% seq_len(n_sample)]
+    prep_data <- prepare_data(
+        data = list(baseline_data = dat$baseline_data,
+                    timevarying_data = dat$timevarying_data),
+        time_horizons = 12,
+        time_covariates = c("changeHbA1c", "A"),
+        baseline_covariates =  c("sex", "HbA1c", "A_0"),
+        marginal_censoring = TRUE,
+        verbose = FALSE
+    )
+    prop_scores <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        penalize_treatment = FALSE,
+        model_hazard = "learn_coxph",
+        verbose = FALSE,
+        exclude_latest_covariate = NULL,
+        lag = 1
+    )
+    out2[[n_sample]] <- suppressWarnings(debias_ice_ipcw(
+        prepared_data = prop_scores,
+        model_hazard = NULL,
+        penalize_hazard = FALSE,
+        conservative = TRUE,
+        static_intervention = 1,
+        return_ic = FALSE,
+        verbose = FALSE,
+        model_pseudo_outcome = "ipcw_glm_expit",
+        tmle_update = TRUE))
+    out2[[n_sample]][, n := n_sample]
+}
+out2 <- rbindlist(out2)
+
+correct_result2 <- data.table::data.table(
+  estimate = c(
+    0.9999999999970993, 0.05046265155045587, 0.5068220176350522,
+    0.4836409366508064, 0.2860495647218465
+  ),
+  se = c(
+    0.10086223614774092, 0.019096729197165038, 0.06047016177876051,
+    0.02832134345383083, 0.015219806411528067
+  ),
+  lower = c(
+    0.8023100171475271, 0.013033062324012398, 0.3883005005486816,
+    0.42813110348129796, 0.2562187441552515
+  ),
+  upper = c(
+    1.1976899828466716, 0.08789224077689935, 0.6253435347214228,
+    0.5391507698203148, 0.31588038528844153
+  ),
+  ice_ipcw_estimate = NA,
+  ipw = c(
+    0.04379417325098416, 0.05003478414183253, 0.0904672186367006,
+    0.0783965787706544, 0.0808209033910306
+  ),
+  time_horizon = 12,
+  n = c(100, 200, 500, 2000, 5000)
+)
+
+expect_equal(out, correct_result)
+expect_equal(out2, correct_result2)
+})
