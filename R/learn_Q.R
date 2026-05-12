@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: May 12 2026 (18:13) 
+## Last-Updated: May 12 2026 (18:57) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 287
+##     Update #: 303
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -199,68 +199,73 @@ learn_Q <- function(model_type,
            }
 
            g_val <- tryCatch(as.numeric(g(fit, X, Y)), error = function(e) NULL)
+           abs_g_val <- ifelse(all(!is.na(g_val)), sum(abs(g_val))/length(g_val), Inf)
 
            if (is.null(g_val) || anyNA(g_val) || any(!is.finite(g_val))) {
                failed <- TRUE
                g_val <- NA_real_
-           } else if (any(abs(g_val) > 1e-2)) {
+           } else if (abs_g_val > 1e-2) {
                failed <- TRUE
            }
 
-           list(failed = failed, warnings = warnings_list, g_val = g_val, fit = fit)
+           list(failed = failed, warnings = warnings_list, g_val = g_val, fit = fit, abs_g_val = abs_g_val)
        }
-       check_fit <- check_if_failed(fit, g, X, Y, beta_init, verbose)
-       failed <- check_fit$failed
+       check_fit <- check_if_failed(fit, g, X, Y, beta_init, verbose, ignore_large_solution = TRUE, name = "cpp")
        warnings_fit <- check_fit$warnings
+       failed_fit <- check_fit$failed
        fit <- check_fit$fit
        g_val <- check_fit$g_val
-       abs_g_val <- ifelse(all(!is.na(g_val)), sum(abs(g_val))/length(g_val), Inf)
-       if (verbose) message("C++ solver average absolute value of estimating equation function: ", abs_g_val)
+       abs_g_val <- check_fit$abs_g_val
        
-       if (grepl("oipcw", model_type) && requireNamespace("nleqslv", quietly = TRUE)) {
-           tryCatch({
-               requireNamespace("nleqslv", quietly = TRUE)
-               fit_nleqslv <- nleqslv::nleqslv(f = g, x = beta_init, X = X, Y = Y, control = list(maxit = 1000, allowSingular = TRUE))$x
-           },
-           error = function(e) {
-               if (verbose) warning("The estimating equation solver did not converge: ", e$message)
-               fit_nleqslv <<- beta_init
-           })
-           check_fit_nleqslv <- check_if_failed(fit_nleqslv, g, X, Y, verbose, ignore_large_solution = TRUE, name = "nleqslv")
-           warning_nleqslv <- check_fit_nleqslv$warnings
-           failed_nleqslv <- check_fit_nleqslv$failed
-           fit_nleqslv <- check_fit_nleqslv$fit
-           g_val_nleqslv <- check_fit_nleqslv$g_val
-           abs_g_val_nleqslv <- ifelse(all(!is.na(g_val_nleqslv)), sum(abs(g_val_nleqslv))/length(g_val_nleqslv), Inf)
-           if (verbose) message("nleqslv solver average absolute value of estimating equation function: ", abs_g_val_nleqslv)
-           
-           g_val_beta_init <- tryCatch(as.numeric(g(beta_init, X, Y)), error = function(e) NA_real_, warning = function(w) NA_real_)
-           abs_g_val_beta_init <- ifelse(all(!is.na(g_val_beta_init)), sum(abs(g_val_beta_init))/length(g_val_beta_init), Inf)
-           if (verbose) message("Initial beta average absolute value of estimating equation function: ", abs_g_val_beta_init)
-           best_index <- which.min(c(abs_g_val_beta_init, abs_g_val, abs_g_val_nleqslv))
-           
-           ## if (verbose) message("Winner: ", c("beta_init", "cpp_fit", "nleqslv_fit")[best_index], " with value of estimating equation function: ", round(values[best_index],4))
-           fit <- list(beta_init, fit, fit_nleqslv)[[best_index]]
-           abs_g_val <- c(abs_g_val_beta_init, abs_g_val, abs_g_val_nleqslv)[best_index]
-           if (verbose) message("Best method: ", c("beta_init", "cpp_fit", "nleqslv_fit")[best_index], " with average absolute value of estimating equation function: ", abs_g_val)
-           if (abs_g_val> 1e-2) {
-               warning("solvers failed to solve the estimating equation. Average absolute value of estimating equation function: ", round(abs_g_val,4))
-               if (verbose) {
-               message("Possible issues: \n")
-               for (w in warnings_fit) {
-                   message(w)
+       if (verbose) message("C++ solver average absolute value of estimating equation function: ", abs_g_val)
+       if (failed_fit) {
+           if (grepl("oipcw", model_type) && requireNamespace("nleqslv", quietly = TRUE)) {
+               tryCatch({
+                   requireNamespace("nleqslv", quietly = TRUE)
+                   fit_nleqslv <- nleqslv::nleqslv(f = g, x = beta_init, X = X, Y = Y, control = list(maxit = 1000, allowSingular = TRUE))$x
+               },
+               error = function(e) {
+                   if (verbose) warning("The estimating equation solver did not converge: ", e$message)
+                   fit_nleqslv <<- beta_init
+               })
+               check_fit_nleqslv <- check_if_failed(fit_nleqslv, g, X, Y, verbose, ignore_large_solution = TRUE, name = "nleqslv")
+               warning_nleqslv <- check_fit_nleqslv$warnings
+               failed_nleqslv <- check_fit_nleqslv$failed
+               fit_nleqslv <- check_fit_nleqslv$fit
+               g_val_nleqslv <- check_fit_nleqslv$g_val
+               abs_g_val_nleqslv <- check_fit_nleqslv$abs_g_val
+               if (verbose) message("nleqslv solver average absolute value of estimating equation function: ", abs_g_val_nleqslv)
+
+               check_beta_init <- check_if_failed(beta_init, g, X, Y, beta_init, verbose, ignore_large_solution = TRUE, name = "beta_init")
+               g_val_beta_init <- check_beta_init$g_val
+               abs_g_val_beta_init <- check_beta_init$abs_g_val
+               
+               if (verbose) message("Initial beta average absolute value of estimating equation function: ", abs_g_val_beta_init)
+               best_index <- which.min(c(abs_g_val_beta_init, abs_g_val, abs_g_val_nleqslv))
+               
+               ## if (verbose) message("Winner: ", c("beta_init", "cpp_fit", "nleqslv_fit")[best_index], " with value of estimating equation function: ", round(values[best_index],4))
+               fit <- list(beta_init, fit, fit_nleqslv)[[best_index]]
+               abs_g_val <- c(abs_g_val_beta_init, abs_g_val, abs_g_val_nleqslv)[best_index]
+               if (verbose) message("Best method: ", c("beta_init", "cpp_fit", "nleqslv_fit")[best_index], " with average absolute value of estimating equation function: ", abs_g_val)
+               if (abs_g_val> 1e-2) {
+                   warning("solvers failed to solve the estimating equation. Average absolute value of estimating equation function: ", round(abs_g_val,4))
+                   if (verbose) {
+                       message("Possible issues: \n")
+                       for (w in warnings_fit) {
+                           message(w)
+                       }
+                       for (w in warning_nleqslv) {
+                           message(w)
+                       }
+                       message("\n")
+                   }
                }
-               for (w in warning_nleqslv) {
-                   message(w)
-               }
+           } else if (abs_g_val > 1e-2) {
+               warning("solver failed to solve the estimating equation. Average absolute value of estimating equation function: ", round(abs_g_val,4))
+           }
+           if (verbose){
                message("\n")
            }
-           }
-       } else if (abs_g_val > 1e-2) {
-           warning("solver failed to solve the estimating equation. Average absolute value of estimating equation function: ", round(abs_g_val,4))
-       }
-       if (verbose){
-           message("\n")
        }
 
        predict_fun <- function(data) {
