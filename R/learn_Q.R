@@ -228,7 +228,7 @@ learn_Q <- function(model_type,
                    if (verbose) warning("The estimating equation solver did not converge: ", e$message)
                    fit_nleqslv <<- beta_init
                })
-               check_fit_nleqslv <- check_if_failed(fit_nleqslv, g, X, Y, verbose, ignore_large_solution = TRUE, name = "nleqslv")
+               check_fit_nleqslv <- check_if_failed(fit_nleqslv, g, X, Y, beta_init, verbose, ignore_large_solution = TRUE, name = "nleqslv")
                warning_nleqslv <- check_fit_nleqslv$warnings
                failed_nleqslv <- check_fit_nleqslv$failed
                fit_nleqslv <- check_fit_nleqslv$fit
