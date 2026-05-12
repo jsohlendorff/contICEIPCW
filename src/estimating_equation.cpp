@@ -75,7 +75,7 @@ arma::vec estimating_equation_cpp(
     // Fast but less stable: solve J step = F
     vec step;
     bool solvable = false;
-    solvable = solve(step, J, F, solve_opts::force_approx);
+    solvable = solve(step, J, F, solve_opts::no_approx);
     
     if (!solvable) {
       warning("Linear system could not be solved, stopping iteration");
