@@ -303,7 +303,7 @@ debias_ice_ipcw <- function(
                 ]
 
                 if (tmle_update) {
-                    has_weight <- ic_final$ipw_cum_weight > 0
+                    has_weight <- ic_final$ipw_cum_weight > 0 & !is.na(ic_final$ipw_cum_weight)
                     if (any(has_weight)) {
                         Y <- ic_final$pseudo_outcome[has_weight]
                         offset <- logit(ic_final$q_prediction[has_weight])
