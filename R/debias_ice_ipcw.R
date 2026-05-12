@@ -85,26 +85,26 @@
 #' )
 #' 
 debias_ice_ipcw <- function(
-    prepared_data,
-    time_horizons = NULL,
-    model_pseudo_outcome = "scaled_quasibinomial",
-    penalize_pseudo_outcome = FALSE,
-    model_hazard = "learn_coxph",
-    penalize_hazard = FALSE,
-    conservative = FALSE,
-    static_intervention = 1,
-    return_ipw = TRUE,
-    return_ic = FALSE,
-    grid_size = NULL,
-    lag = NULL,
-    verbose = FALSE,
-    tmle_update = FALSE,
-    reduce_colinearity_time = FALSE,
-    intervention_hook = NULL,
-    stratify_sequential_regression = FALSE,
-    intervene_all_sequential_regression = FALSE,
-    save_coefficients = FALSE
-) {
+                            prepared_data,
+                            time_horizons = NULL,
+                            model_pseudo_outcome = "scaled_quasibinomial",
+                            penalize_pseudo_outcome = FALSE,
+                            model_hazard = "learn_coxph",
+                            penalize_hazard = FALSE,
+                            conservative = FALSE,
+                            static_intervention = 1,
+                            return_ipw = TRUE,
+                            return_ic = FALSE,
+                            grid_size = NULL,
+                            lag = NULL,
+                            verbose = FALSE,
+                            tmle_update = FALSE,
+                            reduce_colinearity_time = FALSE,
+                            intervention_hook = NULL,
+                            stratify_sequential_regression = FALSE,
+                            intervene_all_sequential_regression = FALSE,
+                            save_coefficients = FALSE
+                            ) {
     if (!inherits(prepared_data, "debiased_prepared")) {
         stop(
             "prepared_data must be of class 'debiased_prepared'. ",
@@ -160,15 +160,15 @@ debias_ice_ipcw <- function(
             last_event
         )
         set(data, j = paste0(
-            c("time_", "event_", "survival_censoring_"),
-            last_event
-        ), value = NULL)
+                      c("time_", "event_", "survival_censoring_"),
+                      last_event
+                  ), value = NULL)
         setnames(data, old = pooled_old, new = pooled_new)
 
         set(data,
             j = "ic",
             value = 0
-        )
+            )
         is_last_event <- TRUE
 
         # IPCW cumulative weights
@@ -247,7 +247,7 @@ debias_ice_ipcw <- function(
                 time_horizon = th,
                 stratify_sequential_regression = stratify_sequential_regression,
                 save_coefficients = save_coefficients,
-            )
+                )
             if (save_coefficients) {
                 coefficient_list_tau[[k]] <- q_reg$coefficients
             }
@@ -304,30 +304,32 @@ debias_ice_ipcw <- function(
 
                 if (tmle_update) {
                     has_weight <- ic_final$ipw_cum_weight > 0
-                    Y <- ic_final$pseudo_outcome[has_weight]
-                    offset <- logit(ic_final$q_prediction[has_weight])
-                    X <- matrix(1, nrow = sum(has_weight), ncol = 1)
-                    weights <- ic_final$ipw_cum_weight[has_weight]
-                    weights <- scale(weights, center = FALSE)
-                    epsilonhat <- tryCatch(
-                        estimating_equation_cpp(
-                            X = X,
-                            Y = Y,
-                            model_type = "oipcw_expit",
-                            maxit = 1000,
-                            tol = 1e-8,
-                            beta = 0,
-                            solve_opts = "force_approx",
-                            offset = offset,
-                            weights = weights
-                        )[1, 1],
-                        error = function(e) {
-                            if (verbose) {
-                                message("TMLE update failed: ", e$message)
+                    if (any(has_weight)) {
+                        Y <- ic_final$pseudo_outcome[has_weight]
+                        offset <- logit(ic_final$q_prediction[has_weight])
+                        X <- matrix(1, nrow = sum(has_weight), ncol = 1)
+                        weights <- ic_final$ipw_cum_weight[has_weight]
+                        weights <- scale(weights, center = FALSE)
+                        epsilonhat <- tryCatch(
+                            estimating_equation_cpp(
+                                X = X,
+                                Y = Y,
+                                maxit = 1000,
+                                tol = 1e-8,
+                                beta = 0,
+                                offset = offset,
+                                weights = weights
+                            )[1, 1],
+                            error = function(e) {
+                                if (verbose) {
+                                    message("TMLE update failed: ", e$message)
+                                }
+                                0
                             }
-                            0
-                        }
-                    )
+                        )
+                    } else {
+                        epsilonhat <- 0
+                    }
                     if (is.null(epsilonhat) || length(epsilonhat) != 1 || !is.finite(epsilonhat)) {
                         warning("TMLE update failed to compute estimating equation value; No TMLE update performed for this iteration.")
                         q_new <- ic_final$q_prediction
@@ -375,18 +377,18 @@ debias_ice_ipcw <- function(
 
         # IPW estimator
         ipw <- if (return_ipw) {
-            set(data, j = "ipw", value = 0)
-            for (k in seq_len(last_event)) {
-                set(
-                    data,
-                    j = "ipw",
-                    value = data[[paste0("ipw_", k)]] + data$ipw
-                )
-            }
-            data[, mean(ipw)]
-        } else {
-            NA_real_
-        }
+                   set(data, j = "ipw", value = 0)
+                   for (k in seq_len(last_event)) {
+                       set(
+                           data,
+                           j = "ipw",
+                           value = data[[paste0("ipw_", k)]] + data$ipw
+                       )
+                   }
+                   data[, mean(ipw)]
+               } else {
+                   NA_real_
+               }
 
         # Final estimates
         pred_0 <- predict_intervention(data, 0, q_reg, static_intervention, verbose, intervention_hook, FALSE)

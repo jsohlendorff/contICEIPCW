@@ -21,43 +21,20 @@ inline vec crossprod_vec(const mat& X, const vec& v) {
 arma::vec estimating_equation_cpp(
     const arma::mat& X,
     const arma::vec& Y,
-    std::string model_type,
     arma::vec beta,
     arma::vec offset,
     Nullable<arma::vec> weights_ = R_NilValue,
-    std::string solve_opts = "fast",
     int maxit = 100,
     double tol = 1e-8,
     bool verbose = false) {
   
-  const unsigned int n = X.n_rows;
   const unsigned int p = X.n_cols;
   
   // check that beta has the right length
   if(beta.n_elem != p) {
     stop("Length of beta must match number of columns in X");
   }
-  
-  // weights
-  arma::vec weights;
-  
-  if(weights_.isNotNull()) {
-    weights = as<arma::vec>(weights_);
     
-    if(weights.n_elem != n) {
-      stop("Length of weights must match number of rows in X");
-    }
-  } else {
-    weights = arma::ones<arma::vec>(n);
-  }
-  
-  // vec beta(p, fill::zeros);
-  
-  bool is_oipcw_expit = model_type == "oipcw_expit";
-  bool is_oipcw_probit = model_type == "oipcw_probit";
-  bool is_nls_expit = model_type == "nls_expit";
-  bool is_nls_probit = model_type == "nls_probit";
-  
   for(int iter = 0; iter < maxit; iter++) {
     
     vec eta = X * beta + offset;
@@ -67,91 +44,24 @@ arma::vec estimating_equation_cpp(
     // ==============================
     // OIPCW score: expit
     // ==============================
-    if (is_oipcw_expit) {
-      mu = expit_vec(eta);
-      w  = mu % (1.0 - mu);
-      
+    mu = expit_vec(eta);
+    w  = mu % (1.0 - mu);
+
+    if (weights_.isNotNull()) {
+      vec weights = as<arma::vec>(weights_);
       F = crossprod_vec(X, weights % (Y - mu));
       J = -crossprod_weighted(X, weights % w);
-    }
-    
-    // ==============================
-    // OIPCW score: probit
-    // ==============================
-    else if (is_oipcw_probit) {
-      mu  = normcdf(eta);
-      w  = mu % (1.0 - mu);
-      pdf = normpdf(eta) / w;
-      
-      vec r = Y - mu;
-      
-      F = crossprod_vec(X, weights % r % pdf);
-      
-      vec d_pdf = -eta % normpdf(eta) / w 
-        - pdf % ( (1.0 - 2.0*mu) % normpdf(eta) / w );
-      
-      vec weight = weights % (pdf % normpdf(eta) + r % d_pdf);
-      
-      J = -crossprod_weighted(X, weight);
-      
-    }
-    
-    // ==============================
-    // Nonlinear LS – expit
-    // ==============================
-    else if(is_nls_expit) {
-      
-      mu  = expit_vec(eta);
-      pdf = mu % (1.0 - mu);
-      
-      vec r = Y - mu;
-      
-      F = crossprod_vec(X, weights % r % pdf);
-      
-      vec W = weights % (-pdf % pdf - r % pdf % (1.0 - 2.0*mu));
-      J = crossprod_weighted(X, W);
-    }
-    
-    // ==============================
-    // Nonlinear LS – probit
-    // ==============================
-    else if(is_nls_probit) {
-      
-      mu  = normcdf(eta);
-      pdf = normpdf(eta);
-      
-      vec r = Y - mu;
-      
-      F = crossprod_vec(X, weights % r % pdf);
-      
-      vec W = weights % (-pdf % pdf - r % eta % pdf);
-      J = crossprod_weighted(X, W);
-    }
-    else {
-      stop("Unknown model_type");
+    } else {
+      F = crossprod_vec(X, Y - mu);
+      J = -crossprod_weighted(X, w);
     }
     
     // Newton step
     // Fast but less stable: solve J step = F
     vec step;
     bool solvable = false;
-    if (solve_opts == "fast") {
-      solvable = solve(step, J, F, solve_opts::fast);
-    } else if (solve_opts == "refine") {
-      solvable = solve(step, J, F, solve_opts::refine);
-    } else if (solve_opts == "equilibrate") {
-      solvable = solve(step, J, F, solve_opts::equilibrate);
-    } else if (solve_opts == "allow_ugly") {
-      solvable = solve(step, J, F, solve_opts::allow_ugly);
-    } else if (solve_opts == "no_approx") {
-      solvable = solve(step, J, F, solve_opts::no_approx);
-    } else if (solve_opts == "force_sym") {
-      solvable = solve(step, J, F, solve_opts::force_sym);
-    } else if (solve_opts == "force_approx") {
-      solvable = solve(step, J, F, solve_opts::force_approx);
-    } else {
-      stop("Unknown solve_opts");
-    }
+    solvable = solve(step, J, F, solve_opts::force_approx);
+    
     if (!solvable) {
       warning("Linear system could not be solved, stopping iteration");
       return beta;

@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:49) 
 ## Version: 
-## Last-Updated: May  6 2026 (13:28) 
+## Last-Updated: May 12 2026 (03:05) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 227
+##     Update #: 239
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -163,11 +163,9 @@ learn_Q <- function(model_type,
            fit <- as.vector(suppressWarnings(estimating_equation_cpp(
                X = X,
                Y = Y,
-               model_type = model_type,
                maxit = 1000,
                tol = 1e-8,
                beta = beta_init,
-               solve_opts = "force_approx",
                offset = rep(0, nrow(X))
            )))
        } else {
@@ -255,10 +253,9 @@ learn_Q <- function(model_type,
                        }
                        message("\n")
                    }
-                   else {
+                 } else {
                        warning("cpp and nleqslv solvers failed to solve the estimating equation and the value of the estimating equation function is NA for both solutions. Picking beta_init as the solution. \n ")
                        fit <- beta_init
-                   }
                }
            } else {
                warning("The estimating equation may not be solved. \n ")
