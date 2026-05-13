@@ -306,7 +306,6 @@ debias_ice_ipcw <- function(
                     tmle_result <- apply_tmle_update(
                         ic_final = ic_final,
                         q_prediction = q_prediction,
-                        solver = estimating_equation_cpp,
                         verbose = verbose
                     )
                     ic_final <- tmle_result$ic_final
