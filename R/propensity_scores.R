@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: May  6 2026 (12:06) 
+## Last-Updated: May 13 2026 (12:32) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 486
+##     Update #: 487
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -388,7 +388,7 @@ propensity_scores <- function(prepared_data,
 
         set(data, j = "A_0_var", value = NULL)
 
-        if (any(preds0)) {
+        if (any(is.na(preds0))) {
             stop("NA values in baseline propensity scores.")
         }
         
