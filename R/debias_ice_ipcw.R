@@ -10,7 +10,7 @@
 #'  \code{"scaled_quasibinomial"} uses a scaled quasi-binomial model, which is similar to \code{"quasibinomial"} but allows for scales outcome to be between 0 and 1
 #'  \code{"ranger"} uses a random forest model from the \code{ranger} package.
 #'  \code{"log_normal_mixture"} uses a log-normal mixture model, which is useful for continuous outcomes with e.g., allows us to model continuous outcomes with a point mass at 0.
-#'
+#'ma
 #' @param model_hazard A string specifying the type of model to use for the cumulative hazard function.
 #' Options include \code{"learn_coxph"} (Cox proportional hazards model).
 #' @param conservative Logical; if \code{TRUE}, do not debias the censoring martingale in the efficient influence function.

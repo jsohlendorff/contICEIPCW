@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Feb 26 2026 (17:41) 
 ## Version: 
-## Last-Updated: May 13 2026 (12:32) 
+## Last-Updated: Aug  5 2026 (13:22) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 487
+##     Update #: 502
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -30,6 +30,7 @@
 #' @param reduce_colinearity_time Logical; if \code{TRUE}, reduces colinearity in the regression for treatment by using increments of event times. Default is \code{FALSE}.
 #' @param gbound Optional numeric value for lower bounding the propensity scores to avoid extreme weights. If \code{NULL}, no bounding is applied.
 #' @param save_coefficients Logical; if \code{TRUE}, saves the coefficients of the fitted models in the output object. Default is \code{FALSE}.
+#' @param marginal_censoring_formula Optional formula for the marginal censoring model. Need to be a string starting with "~". If \code{NULL}, the default formula is used.
 #'
 #' @export
 #' @examples
@@ -72,7 +73,8 @@ propensity_scores <- function(prepared_data,
                               reduce_colinearity_time = FALSE,
                               gbound = NULL,
                               verbose = FALSE,
-                              save_coefficients = FALSE) {
+                              save_coefficients = FALSE,
+                              marginal_censoring_formula = NULL) {
     if (!inherits(prepared_data, "prepare_data_continuous")) {
         stop("prepared_data must be of class 'prepare_data_continuous'.")
     }
@@ -100,14 +102,22 @@ propensity_scores <- function(prepared_data,
         )
         censoring_covariates <- baseline_covariates[constant_vars]
 
+        ## Formula strategy for marginal censoring
+        if (is.null(marginal_censoring_formula)) {
+            formula_strategy <- "additive"
+        } else {
+            formula_strategy <- "custom"
+        }
+
         marginal_censoring_fit <- hazard_fit(
             data = data_marginal_censoring,
             model_hazard = model_hazard,
             outcome_string = "Surv(time, event == \"C\")",
             covariates = censoring_covariates,
-            formula_strategy = "additive",
+            formula_strategy = formula_strategy,
             penalize = penalize_hazard,
-            verbose = verbose
+            verbose = verbose,
+            formula = marginal_censoring_formula
         )
     } else {
         marginal_censoring_fit <- NULL
@@ -154,13 +164,11 @@ propensity_scores <- function(prepared_data,
         ## CENSORING MODEL
         ########################################################################
         if (is_censored_max) {
-
             censoring_wrapper <- function(data2,
                                           at_risk_interevent,
                                           model_hazard,
                                           outcome_string,
                                           covariates,
-                                          formula_strategy,
                                           use_history_of_variables,
                                           lag,
                                           k,
@@ -170,9 +178,7 @@ propensity_scores <- function(prepared_data,
                                           verbose,
                                           time_variable,
                                           event_variable) {
-
                 if (!marginal_censoring) {
-
                     learn_censoring <- hazard_fit(
                         data = at_risk_interevent,
                         model_hazard = model_hazard,
@@ -232,7 +238,6 @@ propensity_scores <- function(prepared_data,
                 model_hazard = model_hazard,
                 outcome_string = NULL,
                 covariates = NULL,
-                formula_strategy = "additive",
                 use_history_of_variables = TRUE,
                 lag = lag,
                 k = k,
@@ -263,7 +268,6 @@ propensity_scores <- function(prepared_data,
                         model_hazard = model_hazard,
                         outcome_string = NULL,
                         covariates = NULL,
-                        formula_strategy = "additive",
                         use_history_of_variables = TRUE,
                         lag = lag,
                         k = k,

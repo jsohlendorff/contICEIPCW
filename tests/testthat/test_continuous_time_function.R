@@ -194,6 +194,43 @@ test_that("test continuous time function (censored; conservative, stratify)", {
     expect_true(all.equal(result, correct_result, tolerance = 1e-8))
 })
 
+test_that("test continuous time function (censored; conservative; formula)", {
+    library(survival)
+    library(data.table)
+    library(riskRegression)
+
+    set.seed(34)
+    # Simulate continuous time data with continuous and irregular event times
+    data_continuous <- simulate_continuous_time_data(
+        n = 1000,
+        no_competing_events = TRUE,
+        uncensored = FALSE
+    )
+
+    # Run debiased ICE-IPCW procedure
+    prep_data <- prepare_data(
+        data = data_continuous,
+        time_horizons = 720,
+        time_covariates = c("A", "L"),
+        baseline_covariates = c("age", "A_0", "L_0"),
+        marginal_censoring = TRUE
+    )
+    altered_data <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph",
+        marginal_censoring_formula = "~ age + A_0 + L_0"
+    )
+    altered_data2 <- propensity_scores(
+        prepared_data = prep_data,
+        model_treatment = "learn_glm_logistic",
+        model_hazard = "learn_coxph"
+    )
+    ## Test that the two objects are identical
+    expect_equal(altered_data$marginal_censoring_fit$coefficients[1], altered_data2$marginal_censoring_fit$coefficients[1])
+})
+
+
 test_that("test continuous time function (censored; conservative, gbounds)", {
     library(survival)
     library(data.table)

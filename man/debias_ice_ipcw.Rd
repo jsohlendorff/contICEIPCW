@@ -38,7 +38,8 @@ Default is \code{"tweedie"}.
 \code{"quasibinomial"} uses a quasi-binomial model. IMPORTANT: Requires outcome between 0 and 1, so cannot be used in the censored case.
 \code{"scaled_quasibinomial"} uses a scaled quasi-binomial model, which is similar to \code{"quasibinomial"} but allows for scales outcome to be between 0 and 1
 \code{"ranger"} uses a random forest model from the \code{ranger} package.
-\code{"log_normal_mixture"} uses a log-normal mixture model, which is useful for continuous outcomes with e.g., allows us to model continuous outcomes with a point mass at 0.}
+\code{"log_normal_mixture"} uses a log-normal mixture model, which is useful for continuous outcomes with e.g., allows us to model continuous outcomes with a point mass at 0.
+ma}
 
 \item{penalize_pseudo_outcome}{Logical; if \code{TRUE}, applies L1-penalization to the regression for the pseudo-outcome. Default is \code{FALSE}.}
 

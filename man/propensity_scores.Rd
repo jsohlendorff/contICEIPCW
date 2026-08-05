@@ -16,7 +16,8 @@ propensity_scores(
   reduce_colinearity_time = FALSE,
   gbound = NULL,
   verbose = FALSE,
-  save_coefficients = FALSE
+  save_coefficients = FALSE,
+  marginal_censoring_formula = NULL
 )
 }
 \arguments{
@@ -45,6 +46,8 @@ Options include \code{"learn_coxph"} (Cox proportional hazards model).}
 \item{verbose}{Logical; if \code{TRUE}, prints additional information during model fitting.}
 
 \item{save_coefficients}{Logical; if \code{TRUE}, saves the coefficients of the fitted models in the output object. Default is \code{FALSE}.}
+
+\item{marginal_censoring_formula}{Optional formula for the marginal censoring model. Need to be a string starting with "~". If \code{NULL}, the default formula is used.}
 }
 \description{
 Function for adding propensity scores (treatment) and censoring models to the prepared data object

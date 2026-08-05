@@ -3,9 +3,9 @@
 ## Author: Johan Sebastian Ohlendorff
 ## Created: Mar 13 2026 (18:42) 
 ## Version: 
-## Last-Updated: Mar 18 2026 (14:27) 
+## Last-Updated: Aug  5 2026 (13:18) 
 ##           By: Johan Sebastian Ohlendorff
-##     Update #: 6
+##     Update #: 19
 #----------------------------------------------------------------------
 ## 
 ### Commentary: 
@@ -14,7 +14,7 @@
 #----------------------------------------------------------------------
 ## 
 ### Code:
-hazard_fit <- function(data, model_hazard, outcome_string, covariates = NULL, formula_strategy = "additive", use_history_of_variables = FALSE, lag = NULL, k = NULL, time_covariates = NULL, baseline_covariates = NULL, time_variable = "time",penalize,verbose) {
+hazard_fit <- function(data, model_hazard, outcome_string, covariates = NULL, formula_strategy = "additive", use_history_of_variables = FALSE, lag = NULL, k = NULL, time_covariates = NULL, baseline_covariates = NULL, time_variable = "time",penalize,verbose,formula = NULL) {
        if (use_history_of_variables) {
            covariates <- get_history_of_variables(
                 data,
@@ -30,8 +30,32 @@ hazard_fit <- function(data, model_hazard, outcome_string, covariates = NULL, fo
                 outcome_string, " ~ ",
                 paste(covariates, collapse = "+")
             )
+       } else if (formula_strategy == "custom") {
+            if (is.null(formula)) {
+                stop("For 'custom' formula strategy, a formula must be provided.")
+            }
+            
+            ## Ensure that formula is a character string
+            if (!is.character(formula)) {
+                stop("The provided formula must be a character string.")
+            }
+            
+            ## Check that the formula can be parsed into a valid R formula
+            tryCatch({
+                as.formula(formula)
+            }, error = function(e) {
+                stop("The provided formula is not valid: ", e$message)
+            })
+
+            ## Ensure that strata variables are not included in the formula
+            if (grepl("strata\\(", formula)) {
+                stop("Stratification on a variable is not supported yet. Please remove any 'strata()' terms.")
+            }
+            formula_hazard <- paste0(
+                outcome_string, formula
+            )
        } else {
-           stop("Currently only 'additive' formula strategy is supported.")
+           stop("Currently only 'additive' and 'custom' formula strategies are supported.")
        }
        if (verbose) message("Fitting hazard model with formula: ", formula_hazard)
         withCallingHandlers(
