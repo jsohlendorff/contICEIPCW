@@ -67,3 +67,24 @@ result <- debias_ice_ipcw(
 )
 ```
 
+## Roadmap 
+
+The R package implements the following:
+
+- ICE-IPCW algorithm and ICE-IPCW with one-step update
+  across multiple time horizons
+- Custom model choice for propensity score and (non-marginal) censoring
+- Fast C++ implementation of OIPCW
+
+The following features need further testing:
+- TMLE update without censoring martingale
+- Inference with censoring martingale
+
+The following features are not implemented:
+- Sample-splitting/cross-fitting
+- Penalization/regularization with option "OIPCW" for iterative regressions
+- Non-marginal censoring with censoring martingale
+- Marginal censoring with anything other than coxph
+- Strata for use with coxph for censoring
+- TMLE update with censoring martingale (don't know how to do this yet)
+- Dynamic and stochastic interventions
